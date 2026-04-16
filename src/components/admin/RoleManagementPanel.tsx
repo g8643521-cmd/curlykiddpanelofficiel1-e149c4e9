@@ -1,12 +1,26 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Crown, ShieldCheck, Trash2, Loader2, RefreshCw, Shield, Users, MoreHorizontal, UserCog, Eye, ChevronDown } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import {
+  Crown,
+  ShieldCheck,
+  Trash2,
+  Loader2,
+  RefreshCw,
+  Shield,
+  Users,
+  MoreHorizontal,
+  UserCog,
+  Search,
+  Sparkles,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
@@ -25,25 +39,93 @@ interface RoleEntry {
     display_name: string | null;
     email: string | null;
     avatar_url: string | null;
-  };
+  } | null;
 }
 
-const ROLE_META: Record<string, { icon: typeof Crown; label: string; badgeClass: string; dotColor: string; order: number }> = {
-  owner:              { icon: Crown,       label: 'Owner',       badgeClass: 'bg-amber-500/10 text-amber-400 border-amber-500/20',   dotColor: 'bg-amber-400', order: 0 },
-  admin:              { icon: Shield,      label: 'Admin',       badgeClass: 'bg-sky-500/10 text-sky-400 border-sky-500/20',         dotColor: 'bg-sky-400',   order: 1 },
-  moderator:          { icon: ShieldCheck, label: 'Moderator',   badgeClass: 'bg-violet-500/10 text-violet-400 border-violet-500/20', dotColor: 'bg-violet-400', order: 2 },
-  mod_creator:        { icon: ShieldCheck, label: 'Mod Creator', badgeClass: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20', dotColor: 'bg-emerald-400', order: 3 },
-  integrations_manager: { icon: Shield,    label: 'Integrations', badgeClass: 'bg-slate-500/10 text-slate-400 border-slate-500/20',  dotColor: 'bg-slate-400', order: 4 },
+type RoleMeta = {
+  icon: typeof Crown;
+  label: string;
+  description: string;
+  badgeClass: string;
+  iconClass: string;
+  accentClass: string;
+  order: number;
 };
 
-const STAFF_ROLES = ['owner', 'admin', 'moderator'];
-const ASSIGNABLE_ROLES = ['admin', 'moderator', 'user'];
+const ROLE_META: Record<string, RoleMeta> = {
+  owner: {
+    icon: Crown,
+    label: 'Owner',
+    description: 'Full control over the workspace',
+    badgeClass: 'bg-amber-500/10 text-amber-300 border-amber-500/20',
+    iconClass: 'text-amber-300',
+    accentClass: 'from-amber-500/15 to-amber-500/0',
+    order: 0,
+  },
+  admin: {
+    icon: Shield,
+    label: 'Admin',
+    description: 'Manage settings, users and content',
+    badgeClass: 'bg-sky-500/10 text-sky-300 border-sky-500/20',
+    iconClass: 'text-sky-300',
+    accentClass: 'from-sky-500/15 to-sky-500/0',
+    order: 1,
+  },
+  moderator: {
+    icon: ShieldCheck,
+    label: 'Moderator',
+    description: 'Review reports and moderate community',
+    badgeClass: 'bg-violet-500/10 text-violet-300 border-violet-500/20',
+    iconClass: 'text-violet-300',
+    accentClass: 'from-violet-500/15 to-violet-500/0',
+    order: 2,
+  },
+  mod_creator: {
+    icon: Sparkles,
+    label: 'Mod Creator',
+    description: 'Upload and manage mods',
+    badgeClass: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20',
+    iconClass: 'text-emerald-300',
+    accentClass: 'from-emerald-500/15 to-emerald-500/0',
+    order: 3,
+  },
+  integrations_manager: {
+    icon: Shield,
+    label: 'Integrations',
+    description: 'Manage integrations and webhooks',
+    badgeClass: 'bg-slate-400/10 text-slate-300 border-slate-400/20',
+    iconClass: 'text-slate-300',
+    accentClass: 'from-slate-400/15 to-slate-400/0',
+    order: 4,
+  },
+};
+
+const STAFF_ROLES = ['owner', 'admin', 'moderator', 'mod_creator', 'integrations_manager'];
+const ASSIGNABLE_ROLES = ['admin', 'moderator', 'mod_creator', 'integrations_manager', 'user'];
+
+const formatRelative = (date: Date | null): string => {
+  if (!date) return '';
+  const diff = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (diff < 5) return 'just now';
+  if (diff < 60) return `${diff}s ago`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return date.toLocaleDateString();
+};
 
 const RoleManagementPanel = () => {
   const [entries, setEntries] = useState<RoleEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [actionId, setActionId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [, setTick] = useState(0);
+
+  // Re-render every 30s so "Updated Xm ago" stays fresh
+  useEffect(() => {
+    const i = setInterval(() => setTick((t) => t + 1), 30_000);
+    return () => clearInterval(i);
+  }, []);
 
   const fetchRoles = useCallback(async () => {
     setIsLoading(true);
@@ -51,10 +133,14 @@ const RoleManagementPanel = () => {
       const { data: roles, error } = await supabase
         .from('user_roles')
         .select('id, user_id, role, created_at')
-        .in('role', STAFF_ROLES)
+        .in('role', STAFF_ROLES as any)
         .order('created_at', { ascending: false });
 
-      if (error) { toast.error('Failed to load roles'); setIsLoading(false); return; }
+      if (error) {
+        toast.error('Failed to load roles');
+        setIsLoading(false);
+        return;
+      }
 
       const userIds = [...new Set((roles ?? []).map((r: any) => r.user_id))];
       let profileMap = new Map();
@@ -66,7 +152,9 @@ const RoleManagementPanel = () => {
         profileMap = new Map((profiles ?? []).map((p: any) => [p.user_id, p]));
       }
 
-      setEntries((roles ?? []).map((r: any) => ({ ...r, profile: profileMap.get(r.user_id) || null })));
+      setEntries(
+        (roles ?? []).map((r: any) => ({ ...r, profile: profileMap.get(r.user_id) || null })),
+      );
       setLastUpdated(new Date());
     } catch {
       toast.error('Failed to load roles');
@@ -74,37 +162,63 @@ const RoleManagementPanel = () => {
     setIsLoading(false);
   }, []);
 
-  useEffect(() => { fetchRoles(); }, [fetchRoles]);
+  useEffect(() => {
+    fetchRoles();
+  }, [fetchRoles]);
 
   const handleRemove = async (entry: RoleEntry) => {
-    if (entry.role === 'owner') { toast.error('Cannot remove owner role'); return; }
+    if (entry.role === 'owner') {
+      toast.error('Cannot remove owner role');
+      return;
+    }
     setActionId(entry.id);
-    setEntries(prev => prev.filter(e => e.id !== entry.id));
+    const snapshot = entries;
+    setEntries((prev) => prev.filter((e) => e.id !== entry.id));
     try {
       const { error } = await supabase.from('user_roles').delete().eq('id', entry.id);
       if (error) {
-        setEntries(prev => [...prev, entry].sort((a, b) => b.created_at.localeCompare(a.created_at)));
+        setEntries(snapshot);
         toast.error('Failed to remove role');
       } else {
         toast.success(`Removed ${entry.role} from ${displayName(entry)}`);
       }
     } catch {
-      setEntries(prev => [...prev, entry].sort((a, b) => b.created_at.localeCompare(a.created_at)));
+      setEntries(snapshot);
       toast.error('Failed to remove role');
     }
     setActionId(null);
   };
 
   const handleChangeRole = async (entry: RoleEntry, newRole: string) => {
-    if (entry.role === 'owner') { toast.error('Cannot change owner role'); return; }
+    if (entry.role === 'owner') {
+      toast.error('Cannot change owner role');
+      return;
+    }
     setActionId(entry.id);
     try {
-      const { error } = await supabase.from('user_roles').update({ role: newRole as any }).eq('id', entry.id);
-      if (error) {
-        toast.error('Failed to change role');
+      if (newRole === 'user') {
+        const { error } = await supabase.from('user_roles').delete().eq('id', entry.id);
+        if (error) {
+          toast.error('Failed to change role');
+        } else {
+          setEntries((prev) => prev.filter((e) => e.id !== entry.id));
+          toast.success(`${displayName(entry)} is now a regular user`);
+        }
       } else {
-        setEntries(prev => prev.map(e => e.id === entry.id ? { ...e, role: newRole } : e));
-        toast.success(`Changed ${displayName(entry)} to ${ROLE_META[newRole]?.label || newRole}`);
+        const { error } = await supabase
+          .from('user_roles')
+          .update({ role: newRole as any })
+          .eq('id', entry.id);
+        if (error) {
+          toast.error('Failed to change role');
+        } else {
+          setEntries((prev) =>
+            prev.map((e) => (e.id === entry.id ? { ...e, role: newRole } : e)),
+          );
+          toast.success(
+            `Changed ${displayName(entry)} to ${ROLE_META[newRole]?.label || newRole}`,
+          );
+        }
       }
     } catch {
       toast.error('Failed to change role');
@@ -112,104 +226,231 @@ const RoleManagementPanel = () => {
     setActionId(null);
   };
 
-  // Group and deduplicate by role
-  const grouped = entries.reduce<Record<string, RoleEntry[]>>((acc, entry) => {
-    const key = entry.role;
-    if (!acc[key]) acc[key] = [];
-    // Deduplicate by user_id within same role
-    if (!acc[key].some(e => e.user_id === entry.user_id)) {
-      acc[key].push(entry);
+  // Deduplicate by (user_id, role) and group by role
+  const grouped = useMemo(() => {
+    const seen = new Set<string>();
+    const unique: RoleEntry[] = [];
+    for (const e of entries) {
+      const key = `${e.user_id}:${e.role}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      unique.push(e);
     }
-    return acc;
-  }, {});
 
-  const sortedGroups = STAFF_ROLES
-    .filter(r => grouped[r]?.length)
-    .sort((a, b) => (ROLE_META[a]?.order ?? 99) - (ROLE_META[b]?.order ?? 99));
+    const q = search.trim().toLowerCase();
+    const filtered = q
+      ? unique.filter((e) => {
+          const name = (e.profile?.display_name || '').toLowerCase();
+          const email = (e.profile?.email || '').toLowerCase();
+          return name.includes(q) || email.includes(q);
+        })
+      : unique;
 
-  const totalStaff = entries.length;
+    return filtered.reduce<Record<string, RoleEntry[]>>((acc, entry) => {
+      (acc[entry.role] ||= []).push(entry);
+      return acc;
+    }, {});
+  }, [entries, search]);
+
+  const sortedGroups = useMemo(
+    () =>
+      Object.keys(grouped)
+        .filter((r) => grouped[r]?.length)
+        .sort((a, b) => (ROLE_META[a]?.order ?? 99) - (ROLE_META[b]?.order ?? 99)),
+    [grouped],
+  );
+
+  const stats = useMemo(() => {
+    const counts: Record<string, number> = {};
+    const seen = new Set<string>();
+    for (const e of entries) {
+      const key = `${e.user_id}:${e.role}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      counts[e.role] = (counts[e.role] || 0) + 1;
+    }
+    return {
+      total: seen.size,
+      owners: counts.owner || 0,
+      admins: counts.admin || 0,
+      moderators: counts.moderator || 0,
+    };
+  }, [entries]);
+
+  const totalFiltered = sortedGroups.reduce((sum, k) => sum + grouped[k].length, 0);
 
   return (
-    <div className="rounded-xl border border-border/30 bg-card/50 backdrop-blur-sm overflow-hidden">
-      {/* Header */}
-      <div className="px-6 py-5 border-b border-border/20 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-amber-500/10 flex items-center justify-center">
-            <Crown className="w-4 h-4 text-amber-400" />
-          </div>
-          <div>
-            <h3 className="text-sm font-semibold text-foreground">Staff Overview</h3>
-            <p className="text-xs text-muted-foreground/60 mt-0.5">
-              {totalStaff} member{totalStaff !== 1 ? 's' : ''} with elevated access
-              {lastUpdated && (
-                <span className="ml-2 text-muted-foreground/40">
-                  · Updated {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
-              )}
-            </p>
-          </div>
-        </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={fetchRoles}
-          disabled={isLoading}
-          className="h-8 w-8 text-muted-foreground/50 hover:text-foreground"
-          title="Refresh"
-        >
-          <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-        </Button>
+    <div className="space-y-4">
+      {/* Stats row */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <StatCard label="Total staff" value={stats.total} icon={Users} tone="text-foreground" />
+        <StatCard label="Owners" value={stats.owners} icon={Crown} tone="text-amber-300" />
+        <StatCard label="Admins" value={stats.admins} icon={Shield} tone="text-sky-300" />
+        <StatCard
+          label="Moderators"
+          value={stats.moderators}
+          icon={ShieldCheck}
+          tone="text-violet-300"
+        />
       </div>
 
-      {/* Content */}
-      {isLoading ? (
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground/40" />
-        </div>
-      ) : sortedGroups.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 gap-3">
-          <div className="w-12 h-12 rounded-xl bg-secondary/30 flex items-center justify-center">
-            <Users className="w-5 h-5 text-muted-foreground/40" />
+      {/* Main panel */}
+      <div className="rounded-xl border border-border/40 bg-card/40 backdrop-blur-sm overflow-hidden">
+        {/* Header */}
+        <div className="px-5 py-4 border-b border-border/30 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
+              <Crown className="w-4 h-4 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-sm font-semibold text-foreground leading-tight">
+                Staff Overview
+              </h3>
+              <p className="text-xs text-muted-foreground/70 mt-0.5">
+                Manage members with elevated access
+                {lastUpdated && (
+                  <>
+                    <span className="mx-1.5 text-muted-foreground/30">·</span>
+                    <span className="text-muted-foreground/50">
+                      Updated {formatRelative(lastUpdated)}
+                    </span>
+                  </>
+                )}
+              </p>
+            </div>
           </div>
-          <p className="text-sm text-muted-foreground/60">No staff roles assigned yet</p>
-        </div>
-      ) : (
-        <div className="py-2">
-          {sortedGroups.map((roleKey, gi) => {
-            const meta = ROLE_META[roleKey];
-            const members = grouped[roleKey];
 
-            return (
-              <div key={roleKey} className={gi > 0 ? 'mt-1' : ''}>
-                {/* Role group header */}
-                <div className="px-6 py-2 flex items-center gap-2">
-                  <div className={`w-1.5 h-1.5 rounded-full ${meta.dotColor}`} />
-                  <span className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground/50">
-                    {meta.label}{members.length > 1 ? 's' : ''}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground/30 ml-1">{members.length}</span>
-                </div>
-
-                {/* Members */}
-                {members.map((entry) => (
-                  <StaffRow
-                    key={entry.id}
-                    entry={entry}
-                    meta={meta}
-                    roleKey={roleKey}
-                    isActioning={actionId === entry.id}
-                    onRemove={() => handleRemove(entry)}
-                    onChangeRole={(newRole) => handleChangeRole(entry, newRole)}
-                  />
-                ))}
-              </div>
-            );
-          })}
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search staff…"
+                className="h-8 pl-8 pr-3 w-full sm:w-56 text-xs bg-background/50 border-border/40"
+              />
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={fetchRoles}
+              disabled={isLoading}
+              className="h-8 w-8 text-muted-foreground/60 hover:text-foreground"
+              title="Refresh"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
         </div>
-      )}
+
+        {/* Content */}
+        {isLoading ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground/40" />
+          </div>
+        ) : sortedGroups.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-3 px-6">
+            <div className="w-12 h-12 rounded-xl bg-secondary/30 flex items-center justify-center">
+              <Users className="w-5 h-5 text-muted-foreground/40" />
+            </div>
+            <div className="text-center">
+              <p className="text-sm font-medium text-foreground/80">
+                {search ? 'No matches found' : 'No staff roles assigned yet'}
+              </p>
+              <p className="text-xs text-muted-foreground/50 mt-1">
+                {search
+                  ? 'Try a different name or email'
+                  : 'Assign a role from the panel above to get started'}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="divide-y divide-border/20">
+            {sortedGroups.map((roleKey) => {
+              const meta = ROLE_META[roleKey];
+              const members = grouped[roleKey];
+              const Icon = meta.icon;
+
+              return (
+                <section key={roleKey}>
+                  {/* Role group header */}
+                  <div className="px-5 py-2.5 flex items-center gap-2.5 bg-secondary/10">
+                    <Icon className={`w-3.5 h-3.5 ${meta.iconClass}`} />
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-foreground/70">
+                      {meta.label}
+                      {members.length > 1 ? 's' : ''}
+                    </span>
+                    <span className="text-[10px] font-medium text-muted-foreground/50 px-1.5 py-0.5 rounded bg-secondary/40">
+                      {members.length}
+                    </span>
+                    <span className="text-[11px] text-muted-foreground/40 ml-1 hidden sm:inline truncate">
+                      · {meta.description}
+                    </span>
+                  </div>
+
+                  {/* Members */}
+                  <div className="divide-y divide-border/10">
+                    {members.map((entry) => (
+                      <StaffRow
+                        key={entry.id}
+                        entry={entry}
+                        meta={meta}
+                        roleKey={roleKey}
+                        isActioning={actionId === entry.id}
+                        onRemove={() => handleRemove(entry)}
+                        onChangeRole={(newRole) => handleChangeRole(entry, newRole)}
+                      />
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Footer */}
+        {!isLoading && sortedGroups.length > 0 && (
+          <div className="px-5 py-2.5 border-t border-border/30 bg-secondary/5 text-[11px] text-muted-foreground/60 flex items-center justify-between">
+            <span>
+              Showing <span className="text-foreground/80 font-medium">{totalFiltered}</span>{' '}
+              of <span className="text-foreground/80 font-medium">{stats.total}</span> staff
+              {search && ' (filtered)'}
+            </span>
+            <span className="hidden sm:inline">
+              Hover a row for actions
+            </span>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
+
+function StatCard({
+  label,
+  value,
+  icon: Icon,
+  tone,
+}: {
+  label: string;
+  value: number;
+  icon: typeof Crown;
+  tone: string;
+}) {
+  return (
+    <div className="rounded-lg border border-border/40 bg-card/40 backdrop-blur-sm p-3 flex items-center gap-3">
+      <div className="w-8 h-8 rounded-md bg-secondary/40 flex items-center justify-center">
+        <Icon className={`w-4 h-4 ${tone}`} />
+      </div>
+      <div className="min-w-0">
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-medium">
+          {label}
+        </p>
+        <p className="text-lg font-semibold text-foreground leading-none mt-1">{value}</p>
+      </div>
+    </div>
+  );
+}
 
 function displayName(entry: RoleEntry): string {
   if (entry.profile?.display_name) return entry.profile.display_name;
@@ -218,10 +459,15 @@ function displayName(entry: RoleEntry): string {
 }
 
 function StaffRow({
-  entry, meta, roleKey, isActioning, onRemove, onChangeRole,
+  entry,
+  meta,
+  roleKey,
+  isActioning,
+  onRemove,
+  onChangeRole,
 }: {
   entry: RoleEntry;
-  meta: typeof ROLE_META[string];
+  meta: RoleMeta;
   roleKey: string;
   isActioning: boolean;
   onRemove: () => void;
@@ -232,62 +478,93 @@ function StaffRow({
   const initials = isPending ? '?' : name[0].toUpperCase();
 
   return (
-    <div className="flex items-center gap-3 px-6 py-3 hover:bg-secondary/5 transition-colors group">
-      <Avatar className="h-8 w-8 ring-1 ring-border/10">
+    <div className="flex items-center gap-3 px-5 py-3 hover:bg-secondary/10 transition-colors group">
+      <Avatar className="h-9 w-9 ring-1 ring-border/20">
         <AvatarImage src={entry.profile?.avatar_url || undefined} />
-        <AvatarFallback className="bg-secondary/30 text-[11px] font-medium text-muted-foreground/70">
+        <AvatarFallback className="bg-secondary/40 text-[11px] font-medium text-muted-foreground/80">
           {initials}
         </AvatarFallback>
       </Avatar>
 
       <div className="flex-1 min-w-0">
-        <p className={`text-sm font-medium truncate leading-tight ${isPending ? 'text-muted-foreground/50 italic' : 'text-foreground'}`}>
-          {name}
-        </p>
+        <div className="flex items-center gap-2">
+          <p
+            className={`text-sm font-medium truncate leading-tight ${
+              isPending ? 'text-muted-foreground/60 italic' : 'text-foreground'
+            }`}
+          >
+            {name}
+          </p>
+          {isPending && (
+            <span className="text-[9px] uppercase tracking-wider text-muted-foreground/50 px-1.5 py-0.5 rounded bg-secondary/40 border border-border/30">
+              Pending
+            </span>
+          )}
+        </div>
         {entry.profile?.email && entry.profile?.display_name && (
-          <p className="text-[11px] text-muted-foreground/40 truncate leading-tight mt-0.5">
+          <p className="text-[11px] text-muted-foreground/50 truncate leading-tight mt-0.5">
             {entry.profile.email}
           </p>
         )}
       </div>
 
-      <Badge variant="outline" className={`text-[10px] font-medium tracking-wide px-2 py-0.5 border ${meta.badgeClass}`}>
+      <Badge
+        variant="outline"
+        className={`hidden sm:inline-flex text-[10px] font-medium tracking-wide px-2 py-0.5 border ${meta.badgeClass}`}
+      >
         {meta.label}
       </Badge>
 
-      {roleKey !== 'owner' && (
+      {roleKey !== 'owner' ? (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground/50 hover:text-foreground"
+              className="h-7 w-7 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 transition-opacity text-muted-foreground/60 hover:text-foreground"
               disabled={isActioning}
             >
-              {isActioning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MoreHorizontal className="h-3.5 w-3.5" />}
+              {isActioning ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <MoreHorizontal className="h-3.5 w-3.5" />
+              )}
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-44">
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-medium">
+              {name}
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
             <DropdownMenuSub>
               <DropdownMenuSubTrigger className="text-xs gap-2">
                 <UserCog className="h-3.5 w-3.5" />
                 Change role
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent>
-                {ASSIGNABLE_ROLES.filter(r => r !== roleKey).map(r => (
-                  <DropdownMenuItem key={r} className="text-xs" onClick={() => onChangeRole(r)}>
-                    {ROLE_META[r]?.label || r}
+                {ASSIGNABLE_ROLES.filter((r) => r !== roleKey).map((r) => (
+                  <DropdownMenuItem
+                    key={r}
+                    className="text-xs"
+                    onClick={() => onChangeRole(r)}
+                  >
+                    {ROLE_META[r]?.label || (r === 'user' ? 'Regular user' : r)}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuSubContent>
             </DropdownMenuSub>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-xs text-destructive focus:text-destructive gap-2" onClick={onRemove}>
+            <DropdownMenuItem
+              className="text-xs text-destructive focus:text-destructive gap-2"
+              onClick={onRemove}
+            >
               <Trash2 className="h-3.5 w-3.5" />
               Remove role
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+      ) : (
+        <div className="w-7" />
       )}
     </div>
   );
