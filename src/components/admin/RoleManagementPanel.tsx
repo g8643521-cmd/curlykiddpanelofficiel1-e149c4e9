@@ -443,6 +443,34 @@ const RoleManagementPanel = () => {
           </div>
         )}
       </div>
+
+      <AlertDialog open={!!confirmRemove} onOpenChange={(open) => !open && setConfirmRemove(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove this role?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmRemove && (
+                <>
+                  <strong className="text-foreground">{displayName(confirmRemove)}</strong> will lose{' '}
+                  <strong className="text-foreground">
+                    {ROLE_META[confirmRemove.role]?.label || confirmRemove.role}
+                  </strong>{' '}
+                  access immediately. You can re-assign the role later if needed.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep role</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRemoveConfirmed}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Yes, remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
