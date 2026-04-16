@@ -1,5 +1,5 @@
 import { useRef, useCallback, useEffect, useState } from "react";
-import satelliteMapImage from "@/assets/gta-v-satellite-map-v2.png";
+import satelliteMapImage from "@/assets/gta-v-satellite-map-v2.jpg";
 import { mapPercentToWorld, worldToMapPercent } from "@/lib/gtaMap";
 
 interface MapMarker {
