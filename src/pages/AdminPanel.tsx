@@ -29,6 +29,7 @@ import { useSystemSettings } from '@/hooks/useSystemSettings';
 import { supabase } from '@/lib/supabase';
 import UserLifecyclePanel from '@/components/admin/UserLifecyclePanel';
 import HeroImagePanel from '@/components/admin/HeroImagePanel';
+import SystemStatusPanel from '@/components/admin/SystemStatusPanel';
 import { toast } from 'sonner';
 
 // Animated counter
@@ -324,6 +325,9 @@ const AdminPanel = () => {
                 </div>
               </motion.div>
             </div>
+
+            {/* System Status */}
+            <SystemStatusPanel />
 
             {/* Social links */}
             <motion.div
