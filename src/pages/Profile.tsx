@@ -348,7 +348,7 @@ const Profile = () => {
                 <div className="flex items-end gap-5">
                   {/* Avatar */}
                   <div className="relative shrink-0 group">
-                    <div className="w-24 h-24 rounded-full ring-[3px] ring-primary shadow-xl shadow-primary/20 overflow-hidden bg-card">
+                    <div className="w-24 h-24 rounded-full shadow-xl shadow-primary/20 overflow-hidden bg-card">
                       {userInfo?.avatar_url ? (
                         <img src={userInfo.avatar_url} alt="" className="w-full h-full object-cover" />
                       ) : (
