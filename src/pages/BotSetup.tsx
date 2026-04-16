@@ -307,8 +307,7 @@ const BotSetup = () => {
     }
 
     const userId = session.session.user.id;
-    // Fire-and-forget claim — don't block server list
-    claimImportedDataForCurrentUser(userId).catch(() => {});
+    await claimImportedDataForCurrentUser(userId);
     console.log('fetchServers: Fetching for user', userId);
 
     const { data, error } = await supabase
