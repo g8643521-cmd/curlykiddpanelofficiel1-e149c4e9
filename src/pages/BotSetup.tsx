@@ -1779,14 +1779,10 @@ const BotSetup = () => {
                                     <Loader2 className="w-5 h-5 mx-auto text-primary animate-spin" />
                                   </div>
                                 ) : (() => {
-                                  const serverJoins = recentJoins
-                                    .filter(j => j.guild_id === server.guild_id)
-                                    .filter(j => joinsFilter === 'cheaters' ? j.is_cheater : true)
-                                    .sort((a, b) => {
-                                      const da = new Date(a.logged_at || 0).getTime();
-                                      const db = new Date(b.logged_at || 0).getTime();
-                                      return joinsSort === 'newest' ? db - da : da - db;
-                                    });
+                                  const presorted = sortedJoinsByGuild.get(server.guild_id) || [];
+                                  const serverJoins = joinsFilter === 'cheaters'
+                                    ? presorted.filter(j => j.is_cheater)
+                                    : presorted;
 
                                   // Show skeleton loaders when scan is running but no results yet
                                   if (serverJoins.length === 0 && isScanning === server.id) {
