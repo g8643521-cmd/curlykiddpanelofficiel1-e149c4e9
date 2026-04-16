@@ -38,21 +38,27 @@ const DatabaseExportPanel = () => {
     fetchTables();
   }, []);
 
-  useEffect(() => {
-    const fetchCounts = async () => {
-      const counts: Record<string, number> = {};
-      for (const table of tables) {
+  const [isLoadingCounts, setIsLoadingCounts] = useState(true);
+
+  const fetchCounts = useCallback(async (tableList: string[]) => {
+    setIsLoadingCounts(true);
+    const results = await Promise.all(
+      tableList.map(async (table) => {
         try {
           const { count } = await supabase.from(table).select('*', { count: 'exact', head: true });
-          counts[table] = count || 0;
+          return [table, count || 0] as const;
         } catch {
-          counts[table] = 0;
+          return [table, 0] as const;
         }
-      }
-      setTableCounts(counts);
-    };
-    if (!isLoadingTables) fetchCounts();
-  }, [tables, isLoadingTables]);
+      })
+    );
+    setTableCounts(Object.fromEntries(results));
+    setIsLoadingCounts(false);
+  }, []);
+
+  useEffect(() => {
+    if (!isLoadingTables) fetchCounts(tables);
+  }, [tables, isLoadingTables, fetchCounts]);
 
   const totalRows = Object.values(tableCounts).reduce((a, b) => a + b, 0);
 
