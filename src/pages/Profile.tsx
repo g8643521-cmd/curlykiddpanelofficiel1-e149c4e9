@@ -3,7 +3,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useI18n } from '@/lib/i18n';
 import { motion } from 'framer-motion';
-import { Pencil, Check, X, Loader2, Camera, LinkIcon, Unlink, Eye, EyeOff, ExternalLink, Shield, Clock, ShieldCheck, Key, Copy } from 'lucide-react';
+import { Pencil, Check, X, Loader2, Camera, LinkIcon, Unlink, Eye, EyeOff, ExternalLink, Shield, Clock, ShieldCheck, Key, Copy, ArrowRight, Fingerprint, Activity, UserCircle2 } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import MaintenanceBanner from '@/components/MaintenanceBanner';
 import Footer from '@/components/Footer';
 import AppHeader from '@/components/AppHeader';
@@ -51,9 +52,46 @@ const Profile = () => {
   const [isLinkingDiscord, setIsLinkingDiscord] = useState(false);
   const [showUserId, setShowUserId] = useState(false);
   const [showEmail, setShowEmail] = useState(false);
-  const [emailCopied, setEmailCopied] = useState(false);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
   const [discordInviteUrl, setDiscordInviteUrl] = useState<string | null>(null);
   const { userRole } = useAdminStatus();
+
+  const copyToClipboard = useCallback(async (value: string, field: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedField(field);
+      toast.success(`${label} copied`);
+      setTimeout(() => setCopiedField(prev => (prev === field ? null : prev)), 1500);
+    } catch {
+      toast.error('Could not copy');
+    }
+  }, []);
+
+  const formatRelative = (iso: string | null | undefined): string => {
+    if (!iso) return '—';
+    const then = new Date(iso).getTime();
+    if (Number.isNaN(then)) return '—';
+    const diff = Date.now() - then;
+    const sec = Math.round(diff / 1000);
+    if (sec < 45) return 'just now';
+    const min = Math.round(sec / 60);
+    if (min < 60) return `${min} min ago`;
+    const hr = Math.round(min / 60);
+    if (hr < 24) return `${hr} hour${hr === 1 ? '' : 's'} ago`;
+    const day = Math.round(hr / 24);
+    if (day < 30) return `${day} day${day === 1 ? '' : 's'} ago`;
+    const mo = Math.round(day / 30);
+    if (mo < 12) return `${mo} month${mo === 1 ? '' : 's'} ago`;
+    const yr = Math.round(mo / 12);
+    return `${yr} year${yr === 1 ? '' : 's'} ago`;
+  };
+
+  const formatExact = (iso: string | null | undefined): string => {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '—';
+    return d.toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' });
+  };
 
   usePresence();
 
@@ -444,81 +482,166 @@ const Profile = () => {
               </motion.div>
             </div>
 
-            {/* Details Card */}
+            <TooltipProvider delayDuration={150}>
+            {/* Identity Card */}
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
               className="mt-6 rounded-2xl border border-border/30 bg-card/60 backdrop-blur-sm overflow-hidden"
             >
-              <div className="px-6 py-4 border-b border-border/15">
-                <h3 className="text-sm font-semibold text-foreground">{t('profile.account_details')}</h3>
+              <div className="px-6 py-4 border-b border-border/15 flex items-center gap-2">
+                <UserCircle2 className="w-4 h-4 text-primary" />
+                <h3 className="text-base font-semibold text-foreground tracking-tight">Identity</h3>
               </div>
               <div className="divide-y divide-border/10">
-                <div className="px-6 py-4 flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">{t('profile.email')}</span>
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="text-sm font-medium text-foreground font-mono tracking-wide cursor-pointer hover:text-primary transition-colors"
-                      onClick={() => setShowEmail(prev => !prev)}
-                      title={showEmail ? 'Click to hide' : 'Click to reveal'}
-                    >
+                {/* Email */}
+                <div className="px-6 py-5 flex items-center justify-between gap-4 group">
+                  <span className="text-sm text-muted-foreground/90">Email</span>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="text-sm font-medium text-foreground font-mono tracking-wide truncate">
                       {showEmail ? userInfo?.email : maskedEmail}
                     </span>
-                    {showEmail && (
-                      <button
-                        className="p-1 rounded-md hover:bg-muted/40 transition-colors"
-                        onClick={async () => {
-                          await navigator.clipboard.writeText(userInfo?.email || '');
-                          setEmailCopied(true);
-                          toast.success('Email copied');
-                          setTimeout(() => setEmailCopied(false), 1500);
-                        }}
-                      >
-                        {emailCopied ? <Check className="w-3.5 h-3.5 text-primary" /> : <Copy className="w-3.5 h-3.5 text-muted-foreground" />}
-                      </button>
-                    )}
+                    <button
+                      onClick={() => setShowEmail(prev => !prev)}
+                      className="p-1.5 rounded-md hover:bg-muted/40 text-muted-foreground hover:text-foreground transition-colors opacity-60 group-hover:opacity-100"
+                      title={showEmail ? 'Hide email' : 'Reveal email'}
+                    >
+                      {showEmail ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                    <button
+                      onClick={() => copyToClipboard(userInfo?.email || '', 'email', 'Email')}
+                      className="p-1.5 rounded-md hover:bg-muted/40 text-muted-foreground hover:text-foreground transition-colors opacity-60 group-hover:opacity-100"
+                      title="Copy email"
+                    >
+                      {copiedField === 'email'
+                        ? <Check className="w-3.5 h-3.5 text-[hsl(var(--green))] animate-in zoom-in-50 duration-200" />
+                        : <Copy className="w-3.5 h-3.5" />}
+                    </button>
                   </div>
                 </div>
-                <div className="px-6 py-4 flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">{t('profile.signin_method')}</span>
-                  <span className="text-sm font-medium text-foreground capitalize">{userInfo?.provider}</span>
-                </div>
-                <div className="px-6 py-4 flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Account Status</span>
-                  <span className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-400">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                    Active
-                  </span>
-                </div>
-                <div className="px-6 py-4 flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Role</span>
-                  <span className={`text-sm font-bold ${roleMeta.color}`}>{roleMeta.label}</span>
-                </div>
-                <div className="px-6 py-4 flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Last Sign-in</span>
-                  <span className="text-sm font-medium text-foreground">
-                    {userInfo?.last_sign_in_at
-                      ? new Date(userInfo.last_sign_in_at).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
-                      : '—'}
-                  </span>
-                </div>
-                <div className="px-6 py-4 flex items-center justify-between group relative">
-                  <span className="text-sm text-muted-foreground">{t('profile.full_user_id')}</span>
-                  <div
-                    className="relative flex items-center gap-2 cursor-pointer"
-                    onClick={() => setShowUserId(prev => !prev)}
-                    title="Don't share this!"
-                  >
-                    <span className={`text-xs font-mono text-muted-foreground select-none transition-all duration-300 ${showUserId ? 'blur-none' : 'blur-sm'}`}>
+
+                {/* User ID */}
+                <div className="px-6 py-5 flex items-center justify-between gap-4 group">
+                  <span className="text-sm text-muted-foreground/90">User ID</span>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className={`text-xs font-mono text-foreground/80 select-none transition-all duration-300 truncate ${showUserId ? 'blur-none' : 'blur-sm'}`}>
                       {userInfo?.user_id}
                     </span>
-                    {!showUserId && (
-                      <span className="text-[10px] text-muted-foreground/50 opacity-0 group-hover:opacity-100 transition-opacity">
-                        Don't share!
-                      </span>
-                    )}
+                    <button
+                      onClick={() => setShowUserId(prev => !prev)}
+                      className="p-1.5 rounded-md hover:bg-muted/40 text-muted-foreground hover:text-foreground transition-colors opacity-60 group-hover:opacity-100"
+                      title={showUserId ? 'Hide ID' : 'Reveal ID'}
+                    >
+                      {showUserId ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                    <button
+                      onClick={() => copyToClipboard(userInfo?.user_id || '', 'uid', 'User ID')}
+                      className="p-1.5 rounded-md hover:bg-muted/40 text-muted-foreground hover:text-foreground transition-colors opacity-60 group-hover:opacity-100"
+                      title="Copy User ID"
+                    >
+                      {copiedField === 'uid'
+                        ? <Check className="w-3.5 h-3.5 text-[hsl(var(--green))] animate-in zoom-in-50 duration-200" />
+                        : <Copy className="w-3.5 h-3.5" />}
+                    </button>
                   </div>
+                </div>
+
+                {/* Role */}
+                <div className="px-6 py-5 flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground/90">Role</span>
+                  <span className={`text-sm font-bold ${roleMeta.color}`}>{roleMeta.label}</span>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Access Card */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.35 }}
+              className="mt-6 rounded-2xl border border-border/30 bg-card/60 backdrop-blur-sm overflow-hidden"
+            >
+              <div className="px-6 py-4 border-b border-border/15 flex items-center gap-2">
+                <Key className="w-4 h-4 text-primary" />
+                <h3 className="text-base font-semibold text-foreground tracking-tight">Access</h3>
+              </div>
+              <div className="divide-y divide-border/10">
+                <div className="px-6 py-5 flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground/90">Sign-in provider</span>
+                  <span className="text-sm font-medium text-foreground capitalize">{userInfo?.provider}</span>
+                </div>
+                <div className="px-6 py-5 flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground/90">Status</span>
+                  <span className="inline-flex items-center gap-2 text-sm font-medium text-[hsl(var(--green))]">
+                    <span className="relative flex h-2 w-2">
+                      <span className="absolute inline-flex h-full w-full rounded-full bg-[hsl(var(--green))] opacity-60 animate-ping" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-[hsl(var(--green))] shadow-[0_0_8px_hsl(var(--green))]" />
+                    </span>
+                    Active now
+                  </span>
+                </div>
+                <div className="px-6 py-5 flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground/90">Email verified</span>
+                  {userInfo?.email_confirmed_at ? (
+                    <span className="inline-flex items-center gap-1.5 text-sm font-medium text-[hsl(var(--green))]">
+                      <Check className="w-3.5 h-3.5" />
+                      Verified
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 text-sm font-medium text-[hsl(var(--yellow))]">
+                      <X className="w-3.5 h-3.5" />
+                      Unverified
+                    </span>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Activity Card */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="mt-6 rounded-2xl border border-border/30 bg-card/60 backdrop-blur-sm overflow-hidden"
+            >
+              <div className="px-6 py-4 border-b border-border/15 flex items-center gap-2">
+                <Activity className="w-4 h-4 text-primary" />
+                <h3 className="text-base font-semibold text-foreground tracking-tight">Activity</h3>
+              </div>
+              <div className="divide-y divide-border/10">
+                <div className="px-6 py-5 flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground/90">Last sign-in</span>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="text-sm font-medium text-foreground cursor-help underline decoration-dotted decoration-muted-foreground/40 underline-offset-4">
+                        {formatRelative(userInfo?.last_sign_in_at)}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>{formatExact(userInfo?.last_sign_in_at)}</TooltipContent>
+                  </Tooltip>
+                </div>
+                <div className="px-6 py-5 flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground/90">Account created</span>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="text-sm font-medium text-foreground cursor-help underline decoration-dotted decoration-muted-foreground/40 underline-offset-4">
+                        {formatRelative(userInfo?.created_at)}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>{formatExact(userInfo?.created_at)}</TooltipContent>
+                  </Tooltip>
+                </div>
+                <div className="px-6 py-5 flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground/90">Last updated</span>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="text-sm font-medium text-foreground cursor-help underline decoration-dotted decoration-muted-foreground/40 underline-offset-4">
+                        {formatRelative(userInfo?.updated_at)}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>{formatExact(userInfo?.updated_at)}</TooltipContent>
+                  </Tooltip>
                 </div>
               </div>
             </motion.div>
@@ -527,44 +650,47 @@ const Profile = () => {
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.35 }}
+              transition={{ delay: 0.45 }}
               className="mt-6 rounded-2xl border border-border/30 bg-card/60 backdrop-blur-sm overflow-hidden"
             >
-              <div className="px-6 py-4 border-b border-border/15">
-                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-primary" />
-                  Security
-                </h3>
+              <div className="px-6 py-4 border-b border-border/15 flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-primary" />
+                <h3 className="text-base font-semibold text-foreground tracking-tight">Security</h3>
               </div>
               <div className="divide-y divide-border/10">
-                <div className="px-6 py-4 flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Email Verified</span>
-                  <span className={`text-sm font-medium ${userInfo?.email_confirmed_at ? 'text-emerald-400' : 'text-amber-400'}`}>
-                    {userInfo?.email_confirmed_at ? 'Verified' : 'Unverified'}
-                  </span>
+                <div className="px-6 py-5 flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-foreground">Two-factor authentication</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Add an extra layer of protection to your account.</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => navigate('/settings?section=security')}
+                    className="shrink-0 gap-1.5 border-primary/40 text-primary hover:bg-primary/10 hover:text-primary"
+                  >
+                    Set up
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Button>
                 </div>
-                <div className="px-6 py-4 flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Two-Factor Auth</span>
-                  <span className="text-sm font-medium text-muted-foreground">Not available</span>
-                </div>
-                <div className="px-6 py-4 flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Account Created</span>
-                  <span className="text-sm font-medium text-foreground">
-                    {userInfo?.created_at
-                      ? new Date(userInfo.created_at).toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })
-                      : '—'}
-                  </span>
-                </div>
-                <div className="px-6 py-4 flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Last Profile Update</span>
-                  <span className="text-sm font-medium text-foreground">
-                    {userInfo?.updated_at
-                      ? new Date(userInfo.updated_at).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
-                      : '—'}
-                  </span>
+                <div className="px-6 py-5 flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-foreground">Password</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Change your password regularly to stay secure.</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => navigate('/settings?section=security')}
+                    className="shrink-0 gap-1.5 text-muted-foreground hover:text-foreground"
+                  >
+                    Manage
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Button>
                 </div>
               </div>
             </motion.div>
+            </TooltipProvider>
 
             {/* Discord Integration Card */}
             <motion.div
