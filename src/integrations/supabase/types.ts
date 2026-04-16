@@ -756,6 +756,51 @@ export type Database = {
       }
     }
     Views: {
+      profiles_public: {
+        Row: {
+          avatar_url: string | null
+          badges: string[] | null
+          bio: string | null
+          created_at: string | null
+          discord_avatar: string | null
+          discord_username: string | null
+          display_name: string | null
+          id: string | null
+          level: number | null
+          theme: string | null
+          user_id: string | null
+          xp: number | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          badges?: string[] | null
+          bio?: string | null
+          created_at?: string | null
+          discord_avatar?: string | null
+          discord_username?: string | null
+          display_name?: string | null
+          id?: string | null
+          level?: number | null
+          theme?: string | null
+          user_id?: string | null
+          xp?: number | null
+        }
+        Update: {
+          avatar_url?: string | null
+          badges?: string[] | null
+          bio?: string | null
+          created_at?: string | null
+          discord_avatar?: string | null
+          discord_username?: string | null
+          display_name?: string | null
+          id?: string | null
+          level?: number | null
+          theme?: string | null
+          user_id?: string | null
+          xp?: number | null
+        }
+        Relationships: []
+      }
       public_profiles: {
         Row: {
           avatar_url: string | null
