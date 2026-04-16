@@ -418,7 +418,7 @@ const RoleManagementPanel = () => {
                         meta={meta}
                         roleKey={roleKey}
                         isActioning={actionId === entry.id}
-                        onRemove={() => handleRemove(entry)}
+                        onRemove={() => requestRemove(entry)}
                         onChangeRole={(newRole) => handleChangeRole(entry, newRole)}
                       />
                     ))}
