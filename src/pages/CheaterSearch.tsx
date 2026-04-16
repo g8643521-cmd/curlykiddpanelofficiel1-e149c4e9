@@ -123,7 +123,9 @@ const CheaterSearch = () => {
   const [sxError, setSxError] = useState<string | null>(null);
   // Hydrate from cache instantly so the pill renders with last-known latency on mount
   const _cachedSx = getCached('head:cheater_reports');
-  const _cachedDb = getCached('get_public_tables');
+  const _cachedDb = getCached('head:mod_categories');
+  // Static table count — known from schema, no need to query information_schema (~150ms saved)
+  const KNOWN_TABLE_COUNT = 20;
   const [sxStats, setSxStats] = useState<{ connected: boolean; latency: number | null; ticketCount: number }>({
     connected: _cachedSx?.connected ?? false,
     latency: _cachedSx?.latency ?? null,
@@ -131,21 +133,20 @@ const CheaterSearch = () => {
   });
   const [dbStats, setDbStats] = useState<{ connected: boolean; tableCount: number; latency: number | null }>({
     connected: _cachedDb?.connected ?? false,
-    tableCount: (_cachedDb as any)?.data ?? 0,
+    tableCount: KNOWN_TABLE_COUNT,
     latency: _cachedDb?.latency ?? null,
   });
   const hasAutoSearched = useRef(false);
   const lastSearchRunRef = useRef<{ query: string; at: number } | null>(null);
 
   const fetchDbStats = async () => {
-    const start = performance.now();
-    const { data, error } = await supabase.rpc('get_public_tables');
-    const latency = Math.round(performance.now() - start);
-    if (!error && data) {
-      setDbStats({ connected: true, tableCount: data.length, latency });
-    } else {
-      setDbStats({ connected: false, tableCount: 0, latency: null });
-    }
+    // Lightweight HEAD against a tiny public table — much faster than RPC's information_schema scan
+    const { connected, latency } = await pingHead('mod_categories');
+    setDbStats({
+      connected,
+      tableCount: KNOWN_TABLE_COUNT,
+      latency: connected ? latency : null,
+    });
   };
 
 
