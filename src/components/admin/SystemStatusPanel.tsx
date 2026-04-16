@@ -57,14 +57,18 @@ export default function SystemStatusPanel() {
           return { ok: false, latency: Math.round(performance.now() - start), error: e?.message ?? 'Network error' };
         }
       })(),
-      // Edge function: ping cfx-lookup with empty body — we just want the round-trip
+      // Edge function: a reachable function (even with a 4xx validation error) means runtime is healthy
       (async () => {
         const start = performance.now();
         try {
-          const { error } = await supabase.functions.invoke('cfx-lookup', { body: { ping: true } });
+          const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cfx-lookup`;
+          const res = await fetch(url, {
+            method: 'OPTIONS',
+            headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? '' },
+          });
           const latency = Math.round(performance.now() - start);
-          // Even a 4xx response means the edge function is reachable
-          return { ok: true, latency, error: error?.message };
+          // Any HTTP response (including 204/4xx) means the edge runtime is reachable
+          return { ok: res.status < 500, latency, error: res.status >= 500 ? `HTTP ${res.status}` : undefined };
         } catch (e: any) {
           return { ok: false, latency: Math.round(performance.now() - start), error: e?.message ?? 'Unreachable' };
         }
