@@ -115,8 +115,11 @@ const AdminPanel = () => {
       supabase.from('profiles').select('id', { count: 'exact', head: true }),
       supabase.from('cheater_reports').select('id', { count: 'exact', head: true }),
       supabase.from('user_roles').select('role'),
-      supabase.from('audit_log').select('action, table_name, created_at, user_id').order('created_at', { ascending: false }).limit(5),
+      supabase.from('audit_log').select('action, table_name, created_at, user_id').order('created_at', { ascending: false }).limit(8),
     ]);
+    if (recentAudit.error) {
+      console.error('[AdminPanel] audit_log fetch error:', recentAudit.error);
+    }
     const roles = rolesData.data || [];
     setStats({
       totalUsers: usersCount.count || 0,
@@ -169,13 +172,17 @@ const AdminPanel = () => {
   };
 
   const formatTimeAgo = (date: string) => {
+    if (!date) return '—';
     const diff = Date.now() - new Date(date).getTime();
+    if (isNaN(diff)) return '—';
     const mins = Math.floor(diff / 60000);
     if (mins < 1) return 'Just now';
     if (mins < 60) return `${mins}m ago`;
     const hrs = Math.floor(mins / 60);
     if (hrs < 24) return `${hrs}h ago`;
-    return `${Math.floor(hrs / 24)}d ago`;
+    const days = Math.floor(hrs / 24);
+    if (days < 30) return `${days}d ago`;
+    return new Date(date).toLocaleDateString();
   };
 
   const renderContent = () => {
@@ -297,20 +304,40 @@ const AdminPanel = () => {
                   </button>
                 </div>
                 <div className="p-2">
-                  {(!stats?.recentActivity || stats.recentActivity.length === 0) ? (
+                  {isLoading ? (
+                    [0, 1, 2, 3].map((i) => (
+                      <div key={i} className="flex items-center gap-3 px-3 py-2.5">
+                        <div className="w-7 h-7 rounded-md bg-secondary/30 animate-pulse shrink-0" />
+                        <div className="flex-1 space-y-1.5">
+                          <div className="h-3 w-32 rounded bg-secondary/30 animate-pulse" />
+                          <div className="h-2.5 w-20 rounded bg-secondary/20 animate-pulse" />
+                        </div>
+                      </div>
+                    ))
+                  ) : (!stats?.recentActivity || stats.recentActivity.length === 0) ? (
                     <div className="py-12 text-center">
                       <Activity className="w-6 h-6 text-muted-foreground/30 mx-auto mb-2" />
                       <p className="text-[12px] text-muted-foreground/60">No recent activity recorded</p>
+                      <button
+                        onClick={fetchData}
+                        className="mt-3 text-[11px] font-medium text-primary hover:text-primary/80 inline-flex items-center gap-1"
+                      >
+                        <RefreshCw className="w-3 h-3" /> Try again
+                      </button>
                     </div>
                   ) : (
                     stats.recentActivity.map((event, i) => (
-                      <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-secondary/15 transition-colors">
+                      <button
+                        key={i}
+                        onClick={() => setSelectedTab('audit')}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-secondary/25 transition-colors text-left"
+                      >
                         <div className="w-7 h-7 rounded-md bg-secondary/30 flex items-center justify-center shrink-0">
                           <Activity className="w-3.5 h-3.5 text-muted-foreground/70" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-[13px] font-medium text-foreground/90 truncate capitalize">
-                            {event.action.replace(/_/g, ' ')}
+                            {(event.action || 'unknown').replace(/_/g, ' ')}
                           </p>
                           <p className="text-[11px] text-muted-foreground/55 truncate">
                             {event.table_name || 'system'}
@@ -319,7 +346,7 @@ const AdminPanel = () => {
                         <span className="text-[11px] text-muted-foreground/45 tabular-nums whitespace-nowrap shrink-0">
                           {formatTimeAgo(event.created_at)}
                         </span>
-                      </div>
+                      </button>
                     ))
                   )}
                 </div>
