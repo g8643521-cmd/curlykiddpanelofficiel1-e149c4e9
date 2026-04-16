@@ -1,5 +1,5 @@
 import { useRef, useCallback, useEffect, useState } from "react";
-import satelliteMapImage from "@/assets/gta-v-satellite-map-v2.png";
+import satelliteMapImage from "@/assets/gta-v-satellite-map-v2.jpg";
 import { mapPercentToWorld, worldToMapPercent } from "@/lib/gtaMap";
 
 interface MapMarker {
@@ -131,7 +131,7 @@ const CoordinateMap2D = ({ markers, selectedMarkerId, onMapClick, onMouseCoordsC
           const drawX = tx * tileScreenSize + s.offsetX;
           const drawY = ty * tileScreenSize + s.offsetY;
           const key = `${tileZoom}_${tx}_${ty}`;
-          const url = `${TILE_BASE}/${tileZoom}/${tx}/${ty}.jpg`;
+          const url = `${TILE_BASE}/${tileZoom}/${tx}_${ty}.jpg`;
           const img = getTile(key, url, () => scheduleDraw());
 
           if (img.complete && img.naturalWidth > 0) {
