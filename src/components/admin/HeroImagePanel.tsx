@@ -95,12 +95,56 @@ export default function HeroImagePanel() {
       </div>
 
       {isLoading ? (
-        <div className="h-40 rounded-lg bg-muted/20 animate-pulse" />
+        <div className="h-48 rounded-lg bg-muted/20 animate-pulse" />
       ) : (
         <>
+          {/* Preview area — always visible */}
+          <div className="relative rounded-lg overflow-hidden border border-border/30 bg-muted/10 aspect-video flex items-center justify-center group">
+            {imageUrl ? (
+              <>
+                <img
+                  src={imageUrl}
+                  alt="Hero showcase preview"
+                  className="w-full h-full object-contain"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).style.opacity = '0.2';
+                  }}
+                />
+                {isUploading && (
+                  <div className="absolute inset-0 bg-background/70 backdrop-blur-sm flex items-center justify-center">
+                    <Loader2 className="w-6 h-6 text-primary animate-spin" />
+                  </div>
+                )}
+                <div className="absolute top-2 right-2 px-2 py-1 rounded-md bg-background/80 backdrop-blur-sm border border-border/30 text-[10px] font-medium text-muted-foreground">
+                  Live preview
+                </div>
+              </>
+            ) : (
+              <div className="text-center px-6 py-12">
+                <div className="w-12 h-12 rounded-xl bg-muted/30 flex items-center justify-center mx-auto mb-3">
+                  <Image className="w-5 h-5 text-muted-foreground/60" />
+                </div>
+                <p className="text-[13px] font-medium text-foreground/80">No custom image uploaded</p>
+                <p className="text-[11px] text-muted-foreground/60 mt-1">The default landing page image will be used</p>
+              </div>
+            )}
+          </div>
+
+          {/* URL/source info */}
           {imageUrl && (
-            <div className="relative rounded-lg overflow-hidden border border-border/20 bg-card/30">
-              <img src={imageUrl} alt="Hero showcase" className="w-full max-h-64 object-contain" />
+            <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-muted/15 border border-border/15">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+              <p className="text-[11px] text-muted-foreground/70 truncate flex-1">
+                {imageUrl.split('/').pop()?.split('?')[0]}
+              </p>
+              <a
+                href={imageUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[11px] font-medium text-primary hover:text-primary/80 shrink-0"
+              >
+                Open ↗
+              </a>
             </div>
           )}
 
