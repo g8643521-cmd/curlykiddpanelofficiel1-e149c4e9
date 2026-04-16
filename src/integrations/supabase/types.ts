@@ -200,6 +200,45 @@ export type Database = {
         }
         Relationships: []
       }
+      discord_bot_config: {
+        Row: {
+          bot_avatar: string | null
+          bot_discriminator: string | null
+          bot_id: string
+          bot_username: string | null
+          created_at: string
+          id: string
+          invite_url: string | null
+          selected_guild_id: string | null
+          selected_guild_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          bot_avatar?: string | null
+          bot_discriminator?: string | null
+          bot_id: string
+          bot_username?: string | null
+          created_at?: string
+          id?: string
+          invite_url?: string | null
+          selected_guild_id?: string | null
+          selected_guild_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          bot_avatar?: string | null
+          bot_discriminator?: string | null
+          bot_id?: string
+          bot_username?: string | null
+          created_at?: string
+          id?: string
+          invite_url?: string | null
+          selected_guild_id?: string | null
+          selected_guild_name?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       discord_bot_servers: {
         Row: {
           alert_channel_name: string | null
