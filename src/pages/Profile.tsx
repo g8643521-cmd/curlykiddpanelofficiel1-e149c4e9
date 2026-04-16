@@ -52,9 +52,46 @@ const Profile = () => {
   const [isLinkingDiscord, setIsLinkingDiscord] = useState(false);
   const [showUserId, setShowUserId] = useState(false);
   const [showEmail, setShowEmail] = useState(false);
-  const [emailCopied, setEmailCopied] = useState(false);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
   const [discordInviteUrl, setDiscordInviteUrl] = useState<string | null>(null);
   const { userRole } = useAdminStatus();
+
+  const copyToClipboard = useCallback(async (value: string, field: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedField(field);
+      toast.success(`${label} copied`);
+      setTimeout(() => setCopiedField(prev => (prev === field ? null : prev)), 1500);
+    } catch {
+      toast.error('Could not copy');
+    }
+  }, []);
+
+  const formatRelative = (iso: string | null | undefined): string => {
+    if (!iso) return '—';
+    const then = new Date(iso).getTime();
+    if (Number.isNaN(then)) return '—';
+    const diff = Date.now() - then;
+    const sec = Math.round(diff / 1000);
+    if (sec < 45) return 'just now';
+    const min = Math.round(sec / 60);
+    if (min < 60) return `${min} min ago`;
+    const hr = Math.round(min / 60);
+    if (hr < 24) return `${hr} hour${hr === 1 ? '' : 's'} ago`;
+    const day = Math.round(hr / 24);
+    if (day < 30) return `${day} day${day === 1 ? '' : 's'} ago`;
+    const mo = Math.round(day / 30);
+    if (mo < 12) return `${mo} month${mo === 1 ? '' : 's'} ago`;
+    const yr = Math.round(mo / 12);
+    return `${yr} year${yr === 1 ? '' : 's'} ago`;
+  };
+
+  const formatExact = (iso: string | null | undefined): string => {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '—';
+    return d.toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' });
+  };
 
   usePresence();
 
