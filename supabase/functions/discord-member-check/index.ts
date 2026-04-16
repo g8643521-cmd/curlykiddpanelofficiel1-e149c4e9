@@ -516,16 +516,18 @@ Deno.serve(async (req) => {
       }
 
       try {
-        // 1. Create auto-scan channel + webhook
+        // 1. Auto-scan channel + webhook
         const autoScanChannel = await findOrCreateChannel("auto-scan-alerts", "Automatic scan alerts from CurlyKidd Bot");
-        const autoScanWebhookUrl = await createWebhookInChannel(autoScanChannel.id, "CurlyKidd Auto-Scan");
+        const autoScanWebhookUrl = await findOrCreateWebhook(autoScanChannel.id, "CurlyKidd Auto-Scan");
 
-        // 2. Create full-scan channel + webhook
+        // 2. Full-scan channel + webhook
         const fullScanChannel = await findOrCreateChannel("full-scan-alerts", "Full scan alerts from CurlyKidd Bot");
-        const fullScanWebhookUrl = await createWebhookInChannel(fullScanChannel.id, "CurlyKidd Full-Scan");
+        const fullScanWebhookUrl = await findOrCreateWebhook(fullScanChannel.id, "CurlyKidd Full-Scan");
 
-        // 3. Create info channel (no webhook needed)
+        // 3. Info channel (no webhook needed)
         const infoChannel = await findOrCreateChannel("curlykidd-info", "Server info & stats from CurlyKidd Bot");
+
+        const allExisted = skippedChannels.length === 3 && createdChannels.length === 0;
 
         const BOT_LOGO = "https://ucjpepubcxhtjxumowwj.supabase.co/storage/v1/object/public/public-assets/bot-avatar.png";
 
