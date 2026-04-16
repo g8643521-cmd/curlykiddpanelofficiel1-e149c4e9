@@ -122,12 +122,12 @@ const CheaterSearch = () => {
   const [sxLoading, setSxLoading] = useState(false);
   const [sxError, setSxError] = useState<string | null>(null);
   // Hydrate from cache instantly so the pill renders with last-known latency on mount
-  const _cachedSx = getCached('get_cheater_stats');
-  const _cachedDb = getCached('head:cheater_reports');
+  const _cachedSx = getCached('head:cheater_reports');
+  const _cachedDb = getCached('get_public_tables');
   const [sxStats, setSxStats] = useState<{ connected: boolean; latency: number | null; ticketCount: number }>({
     connected: _cachedSx?.connected ?? false,
     latency: _cachedSx?.latency ?? null,
-    ticketCount: 0,
+    ticketCount: (_cachedSx as any)?.data ?? 0,
   });
   const [dbStats, setDbStats] = useState<{ connected: boolean; tableCount: number; latency: number | null }>({
     connected: _cachedDb?.connected ?? false,
@@ -138,14 +138,17 @@ const CheaterSearch = () => {
   const lastSearchRunRef = useRef<{ query: string; at: number } | null>(null);
 
   const fetchDbStats = async () => {
-    // Lightweight HEAD ping against a known table — much faster than RPC
-    const { connected, latency, count } = await pingHead('cheater_reports');
-    setDbStats({
-      connected,
-      tableCount: count ?? dbStats.tableCount ?? 0,
-      latency: connected ? latency : null,
-    });
+    const start = performance.now();
+    const { data, error } = await supabase.rpc('get_public_tables');
+    const latency = Math.round(performance.now() - start);
+    if (!error && data) {
+      setDbStats({ connected: true, tableCount: data.length, latency });
+    } else {
+      setDbStats({ connected: false, tableCount: 0, latency: null });
+    }
   };
+
+
 
   useEffect(() => {
     // Fire connection pings first for instant feedback, then heavier stats
