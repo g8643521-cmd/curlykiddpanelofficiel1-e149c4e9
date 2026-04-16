@@ -19,6 +19,9 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import {
+  ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger, ContextMenuSub, ContextMenuSubTrigger, ContextMenuSubContent, ContextMenuSeparator,
+} from '@/components/ui/context-menu';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 
