@@ -52,13 +52,14 @@ export async function pingRpc(
  * to also return a row count cheaply.
  */
 export async function pingHead(
-  table: string
+  table: string,
+  options: { bypassCache?: boolean } = {}
 ): Promise<{ connected: boolean; latency: number; count: number | null }> {
   const cacheKey = `head:${table}`;
   const now = Date.now();
   const cached = cache[cacheKey];
 
-  if (cached && cached.connected && now - cached.timestamp < CACHE_TTL) {
+  if (!options.bypassCache && cached && cached.connected && now - cached.timestamp < CACHE_TTL) {
     return { connected: true, latency: cached.latency!, count: cached.data ?? null };
   }
 
