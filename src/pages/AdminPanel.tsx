@@ -198,19 +198,9 @@ const AdminPanel = () => {
             className="space-y-8"
           >
             {/* Section heading */}
-            <div className="flex items-end justify-between gap-4 pb-1">
-              <div>
-                <h2 className="text-[22px] font-semibold tracking-tight text-foreground">Overview</h2>
-                <p className="text-[13px] text-muted-foreground/70 mt-1">Platform health and key metrics at a glance.</p>
-              </div>
-              <button
-                onClick={fetchData}
-                disabled={isLoading}
-                className="inline-flex items-center gap-1.5 text-[12px] font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-                Refresh
-              </button>
+            <div className="pb-1">
+              <h2 className="text-[22px] font-semibold tracking-tight text-foreground">Overview</h2>
+              <p className="text-[13px] text-muted-foreground/70 mt-1">Platform health and key metrics at a glance.</p>
             </div>
 
             {/* Stat cards */}
