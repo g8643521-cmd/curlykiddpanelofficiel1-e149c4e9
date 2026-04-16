@@ -14,6 +14,7 @@ import BotOverviewPanel from '@/components/admin/BotOverviewPanel';
 import ApiKeysPanel from '@/components/admin/ApiKeysPanel';
 import CheaterManagement from '@/components/CheaterManagement';
 import AddRoleByEmail from '@/components/admin/AddRoleByEmail';
+import TransferOwnership from '@/components/admin/TransferOwnership';
 import SocialLinksPanel from '@/components/admin/SocialLinksPanel';
 import DatabaseExportPanel from '@/components/admin/DatabaseExportPanel';
 import StatsOverridePanel from '@/components/admin/StatsOverridePanel';
