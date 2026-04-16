@@ -123,7 +123,7 @@ const AddRoleByEmail = ({ onRoleAssigned }: AddRoleByEmailProps) => {
               }`}
             />
             {emailValid && (
-              <Check className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-400 animate-in fade-in zoom-in-50 duration-150" />
+              <Check className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary animate-in fade-in zoom-in-50 duration-150" />
             )}
           </div>
           {showError ? (
