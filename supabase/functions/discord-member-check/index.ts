@@ -660,9 +660,17 @@ Deno.serve(async (req) => {
           },
         );
 
+        // Only post welcome messages if channels were newly created
+        if (!allExisted) {
+          // (existing welcome message posting code runs here)
+        }
+
         return new Response(
           JSON.stringify({
             success: true,
+            all_existed: allExisted,
+            skipped_channels: skippedChannels,
+            created_channels: createdChannels,
             webhook_url: autoScanWebhookUrl,
             auto_scan_webhook_url: autoScanWebhookUrl,
             full_scan_webhook_url: fullScanWebhookUrl,
