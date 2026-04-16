@@ -131,7 +131,7 @@ const CoordinateMap2D = ({ markers, selectedMarkerId, onMapClick, onMouseCoordsC
           const drawX = tx * tileScreenSize + s.offsetX;
           const drawY = ty * tileScreenSize + s.offsetY;
           const key = `${tileZoom}_${tx}_${ty}`;
-          const url = `${TILE_BASE}/${tileZoom}/${tx}/${ty}.jpg`;
+          const url = `${TILE_BASE}/${tileZoom}/${tx}_${ty}.jpg`;
           const img = getTile(key, url, () => scheduleDraw());
 
           if (img.complete && img.naturalWidth > 0) {
