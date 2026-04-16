@@ -77,7 +77,7 @@ const ServerEmbed = () => {
     <div style={{ ...baseStyles.container, background: colors.bg, borderColor: colors.border, color: colors.text }}>
       <div style={baseStyles.header}>
         <Wifi size={14} style={{ color: "#22c55e" }} />
-        <span style={baseStyles.hostname} dangerouslySetInnerHTML={{ __html: stripColors(data.hostname) }} />
+        <span style={baseStyles.hostname}>{stripColors(data.hostname)}</span>
       </div>
       <div style={{ ...baseStyles.stats, color: colors.sub }}>
         <Users size={14} />
