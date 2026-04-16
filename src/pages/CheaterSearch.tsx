@@ -46,7 +46,7 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import { supabase } from '@/lib/supabase';
-import { pingRpc } from '@/lib/connectionCache';
+import { pingRpc, pingHead, getCached } from '@/lib/connectionCache';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import MaintenanceBanner from '@/components/MaintenanceBanner';
@@ -121,30 +121,41 @@ const CheaterSearch = () => {
   const [sxDiscordUser, setSxDiscordUser] = useState<any>(null);
   const [sxLoading, setSxLoading] = useState(false);
   const [sxError, setSxError] = useState<string | null>(null);
-  const [sxStats, setSxStats] = useState<{ connected: boolean; latency: number | null; ticketCount: number }>({ connected: false, latency: null, ticketCount: 0 });
-  const [dbStats, setDbStats] = useState<{ connected: boolean; tableCount: number; latency: number | null }>({ connected: false, tableCount: 0, latency: null });
+  // Hydrate from cache instantly so the pill renders with last-known latency on mount
+  const _cachedSx = getCached('get_cheater_stats');
+  const _cachedDb = getCached('head:cheater_reports');
+  const [sxStats, setSxStats] = useState<{ connected: boolean; latency: number | null; ticketCount: number }>({
+    connected: _cachedSx?.connected ?? false,
+    latency: _cachedSx?.latency ?? null,
+    ticketCount: 0,
+  });
+  const [dbStats, setDbStats] = useState<{ connected: boolean; tableCount: number; latency: number | null }>({
+    connected: _cachedDb?.connected ?? false,
+    tableCount: (_cachedDb as any)?.data ?? 0,
+    latency: _cachedDb?.latency ?? null,
+  });
   const hasAutoSearched = useRef(false);
   const lastSearchRunRef = useRef<{ query: string; at: number } | null>(null);
 
   const fetchDbStats = async () => {
-    try {
-      const start = Date.now();
-      const { data, error } = await supabase.rpc('get_public_tables');
-      const latency = Date.now() - start;
-      if (!error && data) {
-        setDbStats({ connected: true, tableCount: data.length, latency });
-      } else {
-        setDbStats({ connected: false, tableCount: 0, latency: null });
-      }
-    } catch {
-      setDbStats({ connected: false, tableCount: 0, latency: null });
-    }
+    // Lightweight HEAD ping against a known table — much faster than RPC
+    const { connected, latency, count } = await pingHead('cheater_reports');
+    setDbStats({
+      connected,
+      tableCount: count ?? dbStats.tableCount ?? 0,
+      latency: connected ? latency : null,
+    });
   };
 
   useEffect(() => {
-    // Fetch stats (DB function) and overrides in parallel — NO need to fetch all cheaters on load
-    Promise.all([fetchStats(), fetchStatsOverrides(), fetchDbStats(), fetchSxStats()]);
-    const interval = setInterval(fetchSxStats, 120000);
+    // Fire connection pings first for instant feedback, then heavier stats
+    fetchDbStats();
+    fetchSxStats();
+    Promise.all([fetchStats(), fetchStatsOverrides()]);
+    const interval = setInterval(() => {
+      fetchSxStats();
+      fetchDbStats();
+    }, 120000);
     return () => { clearInterval(interval); };
   }, []);
 
