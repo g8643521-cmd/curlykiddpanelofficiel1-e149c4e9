@@ -447,6 +447,9 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const auth = await requireAdmin(req);
+    if (!auth.ok) return auth.response;
+
     const { action, guild_id } = await req.json();
 
     if (action === "get_bot_info") {
