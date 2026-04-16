@@ -141,16 +141,7 @@ const DatabaseExportPanel = () => {
       setImportResult({ tables: importedTables, rows: importedRows, tableResults, ignoredKeys });
       toast.success(`Imported ${importedTables} tables and ${importedRows.toLocaleString()} rows`);
 
-      const counts: Record<string, number> = {};
-      for (const table of tables) {
-        try {
-          const { count } = await supabase.from(table).select('*', { count: 'exact', head: true });
-          counts[table] = count || 0;
-        } catch {
-          counts[table] = 0;
-        }
-      }
-      setTableCounts(counts);
+      await fetchCounts(tables);
     } catch {
       toast.error('Failed to parse backup file');
     }
