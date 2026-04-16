@@ -445,8 +445,34 @@ export default function UserLifecyclePanel() {
                       {/* Actions */}
                       <div className="flex justify-center">
                         <ChevronRight className="w-4 h-4 text-muted-foreground/20 group-hover:text-muted-foreground/60 transition-colors" />
-                  </div>
-                </motion.div>
+                      </div>
+                    </motion.div>
+                  </ContextMenuTrigger>
+                  <ContextMenuContent className="w-48">
+                    <ContextMenuSub>
+                      <ContextMenuSubTrigger className="flex items-center gap-2">
+                        <Shield className="w-3.5 h-3.5" />
+                        Assign Role
+                      </ContextMenuSubTrigger>
+                      <ContextMenuSubContent>
+                        {['owner', 'admin', 'moderator', 'mod_creator', 'user'].map((role) => (
+                          <ContextMenuItem
+                            key={role}
+                            onClick={() => user.email && assignRole(user.user_id, user.email, role)}
+                            className="capitalize"
+                          >
+                            {role === 'mod_creator' ? 'Mod Creator' : role.charAt(0).toUpperCase() + role.slice(1)}
+                          </ContextMenuItem>
+                        ))}
+                      </ContextMenuSubContent>
+                    </ContextMenuSub>
+                    <ContextMenuSeparator />
+                    <ContextMenuItem onClick={() => fetchUserDetail(user)}>
+                      <Eye className="w-3.5 h-3.5 mr-2" />
+                      View Details
+                    </ContextMenuItem>
+                  </ContextMenuContent>
+                </ContextMenu>
               );
             })}
           </div>
