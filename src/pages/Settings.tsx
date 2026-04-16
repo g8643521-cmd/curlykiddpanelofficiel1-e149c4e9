@@ -129,8 +129,21 @@ const Settings = () => {
     if (v) soundEffects.playClick();
   };
 
-  const handleNotificationToggle = async () => {
-    if (!notificationsEnabled) {
+  const handleNotificationToggle = async (checked: boolean) => {
+    if (checked) {
+      if (!('Notification' in window)) {
+        toast.error("Your browser doesn't support notifications");
+        return;
+      }
+      if (Notification.permission === 'denied') {
+        toast.error('Notifications blocked. Enable them in your browser settings.');
+        return;
+      }
+      if (Notification.permission === 'granted') {
+        setNotificationsEnabled(true);
+        toast.success(t('settings.notifications_enabled'));
+        return;
+      }
       const granted = await requestPermission();
       setNotificationsEnabled(granted);
       if (granted) toast.success(t('settings.notifications_enabled'));
