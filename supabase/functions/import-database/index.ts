@@ -145,6 +145,7 @@ Deno.serve(async (req) => {
                   column.column_name,
                   column.column_type,
                   row[column.column_name],
+                  user.id,
                 );
               }
             }
