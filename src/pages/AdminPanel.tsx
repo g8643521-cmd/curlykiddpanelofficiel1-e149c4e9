@@ -115,8 +115,11 @@ const AdminPanel = () => {
       supabase.from('profiles').select('id', { count: 'exact', head: true }),
       supabase.from('cheater_reports').select('id', { count: 'exact', head: true }),
       supabase.from('user_roles').select('role'),
-      supabase.from('audit_log').select('action, table_name, created_at, user_id').order('created_at', { ascending: false }).limit(5),
+      supabase.from('audit_log').select('action, table_name, created_at, user_id').order('created_at', { ascending: false }).limit(8),
     ]);
+    if (recentAudit.error) {
+      console.error('[AdminPanel] audit_log fetch error:', recentAudit.error);
+    }
     const roles = rolesData.data || [];
     setStats({
       totalUsers: usersCount.count || 0,
