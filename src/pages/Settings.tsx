@@ -162,46 +162,6 @@ const Settings = () => {
   const displayName = userInfo?.display_name || 'User';
   const initials = displayName[0]?.toUpperCase() || '?';
 
-  const SettingRow = ({ icon: Icon, iconColor = 'text-primary', label, description, children }: {
-    icon: any; iconColor?: string; label: string; description?: string; children: React.ReactNode;
-  }) => (
-    <div className="flex items-center justify-between gap-4 px-4 py-3.5 hover:bg-muted/10 transition-colors duration-150">
-      <div className="flex items-center gap-3 min-w-0">
-        <div className={`p-1.5 rounded-lg bg-muted/30 shrink-0`}>
-          <Icon className={`w-4 h-4 ${iconColor}`} />
-        </div>
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-foreground">{label}</p>
-          {description && <p className="text-[11px] text-muted-foreground/60 mt-0.5 leading-tight">{description}</p>}
-        </div>
-      </div>
-      <div className="shrink-0">{children}</div>
-    </div>
-  );
-
-  const SectionCard = ({ title, icon: Icon, delay, children, variant = 'default' }: {
-    title: string; icon: any; delay: number; children: React.ReactNode; variant?: 'default' | 'danger';
-  }) => (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay, duration: 0.35 }}
-      className={`rounded-xl border overflow-hidden backdrop-blur-sm ${
-        variant === 'danger'
-          ? 'border-destructive/20 bg-card/60'
-          : 'border-border/25 bg-card/60'
-      }`}
-    >
-      <div className={`px-4 py-3 border-b flex items-center gap-2 ${
-        variant === 'danger' ? 'border-destructive/10' : 'border-border/15'
-      }`}>
-        <Icon className={`w-3.5 h-3.5 ${variant === 'danger' ? 'text-destructive/70' : 'text-primary/70'}`} />
-        <h3 className="text-xs font-semibold text-foreground/80 uppercase tracking-wider">{title}</h3>
-      </div>
-      <div className="divide-y divide-border/10">{children}</div>
-    </motion.div>
-  );
-
   return (
     <div className="min-h-screen flex flex-col bg-background relative">
       <Suspense fallback={<div className="fixed inset-0 -z-10" style={{ background: 'hsl(230, 25%, 4%)' }} />}>
