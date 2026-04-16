@@ -462,7 +462,7 @@ const BotSetup = () => {
 
       // Auto-create channels & webhooks if none provided (auto mode)
       if (!effectiveWebhookUrl && addMode === 'auto') {
-        toast.info('Opretter kanaler og webhooks automatisk...');
+        toast.info('Creating channels and webhooks automatically...');
         const { data: whData, error: whError } = await supabase.functions.invoke('discord-member-check', {
           body: { action: 'create-webhook', guildId },
         });
