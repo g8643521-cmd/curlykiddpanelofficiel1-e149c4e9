@@ -1,6 +1,17 @@
 import { useEffect, useState, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Globe, Volume2, Download, Trash2, Bell, BellOff, Monitor, Palette, Shield, EyeOff, Zap, Settings2 } from 'lucide-react';
+import { Globe, Volume2, Download, Trash2, Bell, BellOff, Monitor, Palette, Shield, EyeOff, Zap, Settings2, Play, Check, AlertTriangle } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { useI18n } from '@/lib/i18n';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
