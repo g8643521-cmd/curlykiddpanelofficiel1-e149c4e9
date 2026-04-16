@@ -421,9 +421,9 @@ const BotSetup = () => {
               `${j.guild_id}:${j.discord_user_id}:${j.logged_at || ''}` === key
             );
             if (alreadyExists) return prev;
-            // Keep max 500 per guild to prevent memory pressure
+            // Cap at 500 (matches our query limits) to prevent memory pressure
             const updated = [newJoin, ...prev];
-            if (updated.length > 1000) return updated.slice(0, 1000);
+            if (updated.length > 500) return updated.slice(0, 500);
             return updated;
           });
         }
