@@ -182,8 +182,8 @@ const CheaterSearch = () => {
   }, [searchQuery]);
 
   const fetchSxStats = async () => {
-    // Use lightweight HEAD ping instead of RPC — count comes for free via Content-Range
-    const { connected, latency, count } = await pingHead('cheater_reports');
+    // Bypass cache so each tick produces a fresh latency measurement
+    const { connected, latency, count } = await pingHead('cheater_reports', { bypassCache: true });
     setSxStats({
       connected,
       latency: connected ? latency : null,
