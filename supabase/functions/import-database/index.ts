@@ -277,6 +277,7 @@ function buildInsertQuery(tableName: string, columns: TableColumn[]) {
     INSERT INTO ${quotedTable} (${columnList})
     SELECT ${columnList}
     FROM jsonb_to_recordset($1::text::jsonb) AS incoming(${columnDefs})
+    ON CONFLICT DO NOTHING
   `;
 }
 
