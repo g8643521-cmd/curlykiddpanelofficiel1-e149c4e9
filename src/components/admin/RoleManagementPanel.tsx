@@ -129,6 +129,7 @@ const RoleManagementPanel = () => {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [actionId, setActionId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [confirmRemove, setConfirmRemove] = useState<RoleEntry | null>(null);
   const [, setTick] = useState(0);
 
   // Re-render every 30s so "Updated Xm ago" stays fresh
@@ -176,25 +177,35 @@ const RoleManagementPanel = () => {
     fetchRoles();
   }, [fetchRoles]);
 
-  const handleRemove = async (entry: RoleEntry) => {
+  const requestRemove = (entry: RoleEntry) => {
     if (entry.role === 'owner') {
-      toast.error('Cannot remove owner role');
+      toast.error('You can’t remove the owner role');
       return;
     }
+    setConfirmRemove(entry);
+  };
+
+  const handleRemoveConfirmed = async () => {
+    const entry = confirmRemove;
+    if (!entry) return;
+    setConfirmRemove(null);
     setActionId(entry.id);
     const snapshot = entries;
+    // Optimistic update
     setEntries((prev) => prev.filter((e) => e.id !== entry.id));
     try {
       const { error } = await supabase.from('user_roles').delete().eq('id', entry.id);
       if (error) {
         setEntries(snapshot);
-        toast.error('Failed to remove role');
+        toast.error('Couldn’t remove that role. Please try again.');
       } else {
-        toast.success(`Removed ${entry.role} from ${displayName(entry)}`);
+        toast.success('Role removed', {
+          description: `${displayName(entry)} no longer has ${ROLE_META[entry.role]?.label || entry.role} access.`,
+        });
       }
     } catch {
       setEntries(snapshot);
-      toast.error('Failed to remove role');
+      toast.error('Couldn’t remove that role. Please try again.');
     }
     setActionId(null);
   };
