@@ -140,8 +140,8 @@ const CheaterSearch = () => {
   const lastSearchRunRef = useRef<{ query: string; at: number } | null>(null);
 
   const fetchDbStats = async () => {
-    // Lightweight HEAD against a tiny public table — much faster than RPC's information_schema scan
-    const { connected, latency } = await pingHead('mod_categories');
+    // Bypass cache so the pill updates with a fresh measurement every tick
+    const { connected, latency } = await pingHead('mod_categories', { bypassCache: true });
     setDbStats({
       connected,
       tableCount: KNOWN_TABLE_COUNT,
@@ -149,17 +149,16 @@ const CheaterSearch = () => {
     });
   };
 
-
-
   useEffect(() => {
     // Fire connection pings first for instant feedback, then heavier stats
     fetchDbStats();
     fetchSxStats();
     Promise.all([fetchStats(), fetchStatsOverrides()]);
+    // Live-refresh status pills every 3s so the latency reflects current conditions
     const interval = setInterval(() => {
       fetchSxStats();
       fetchDbStats();
-    }, 120000);
+    }, 3000);
     return () => { clearInterval(interval); };
   }, []);
 
