@@ -179,12 +179,13 @@ const CheaterSearch = () => {
   }, [searchQuery]);
 
   const fetchSxStats = async () => {
-    try {
-      const { connected, latency } = await pingRpc('get_cheater_stats');
-      setSxStats({ connected, latency: connected ? latency : null, ticketCount: 0 });
-    } catch {
-      setSxStats({ connected: false, latency: null, ticketCount: 0 });
-    }
+    // Use lightweight HEAD ping instead of RPC — count comes for free via Content-Range
+    const { connected, latency, count } = await pingHead('cheater_reports');
+    setSxStats({
+      connected,
+      latency: connected ? latency : null,
+      ticketCount: count ?? 0,
+    });
   };
 
   const [statsOverrides, setStatsOverrides] = useState<{ total?: number; confirmed?: number; suspected?: number }>({});
