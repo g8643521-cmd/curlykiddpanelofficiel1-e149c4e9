@@ -211,7 +211,7 @@ const Settings = () => {
       <AppHeader />
 
       <main className="flex-1 relative z-10">
-        <div className="container mx-auto px-4 py-6 md:py-10 max-w-2xl">
+        <div className="container mx-auto px-4 py-8 md:py-12 max-w-3xl">
           {/* Hero Banner Card */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
