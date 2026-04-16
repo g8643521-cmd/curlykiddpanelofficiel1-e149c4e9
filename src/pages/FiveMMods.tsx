@@ -171,23 +171,50 @@ const FiveMMods = () => {
     }
   };
 
+  const logModAudit = async (action: string, mod: { id: string; name: string }, extra: Record<string, any> = {}) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      await supabase.from('audit_log').insert({
+        action,
+        table_name: 'fivem_mods',
+        record_id: mod.id,
+        user_id: session?.user?.id ?? null,
+        new_data: { name: mod.name, ...extra },
+      });
+    } catch (e) {
+      console.warn('Audit log insert failed:', e);
+    }
+  };
+
   const handleDeleteMod = async (mod: FiveMod) => {
     if (!confirm(`Are you sure you want to delete "${mod.name}"?`)) return;
     const { error } = await supabase.from('fivem_mods').delete().eq('id', mod.id);
     if (error) { toast.error('Failed to delete mod'); console.error(error); }
-    else { toast.success(`Deleted "${mod.name}"`); fetchMods(); }
+    else {
+      await logModAudit('mod_deleted', mod);
+      toast.success(`Deleted "${mod.name}"`);
+      fetchMods();
+    }
   };
 
   const handleToggleFeatured = async (mod: FiveMod) => {
     const { error } = await supabase.from('fivem_mods').update({ is_featured: !mod.is_featured }).eq('id', mod.id);
     if (error) { toast.error('Failed to update'); }
-    else { toast.success(mod.is_featured ? 'Removed from featured' : 'Added to featured'); fetchMods(); }
+    else {
+      await logModAudit('mod_featured_toggled', mod, { is_featured: !mod.is_featured });
+      toast.success(mod.is_featured ? 'Removed from featured' : 'Added to featured');
+      fetchMods();
+    }
   };
 
   const handleToggleActive = async (mod: FiveMod) => {
     const { error } = await supabase.from('fivem_mods').update({ is_active: !mod.is_active }).eq('id', mod.id);
     if (error) { toast.error('Failed to update'); }
-    else { toast.success(mod.is_active ? 'Mod deactivated' : 'Mod activated'); fetchMods(); }
+    else {
+      await logModAudit('mod_active_toggled', mod, { is_active: !mod.is_active });
+      toast.success(mod.is_active ? 'Mod deactivated' : 'Mod activated');
+      fetchMods();
+    }
   };
 
   const handleCopyId = (mod: FiveMod) => {
@@ -207,7 +234,15 @@ const FiveMMods = () => {
       .update({ name: editForm.name.trim(), description: editForm.description.trim() || null, version: editForm.version, category_id: editForm.category_id || null })
       .eq('id', editingMod.id);
     if (error) { toast.error('Failed to save changes'); console.error(error); }
-    else { toast.success('Mod updated'); setEditingMod(null); fetchMods(); }
+    else {
+      await logModAudit('mod_updated', { id: editingMod.id, name: editForm.name.trim() }, {
+        version: editForm.version,
+        category_id: editForm.category_id || null,
+      });
+      toast.success('Mod updated');
+      setEditingMod(null);
+      fetchMods();
+    }
   };
 
   const handleAiEnhanceScreenshot = (mod: FiveMod, screenshotIndex: number) => {
