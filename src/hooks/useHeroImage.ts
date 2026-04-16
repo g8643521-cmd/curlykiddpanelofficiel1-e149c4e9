@@ -25,6 +25,11 @@ export function useHeroImage(fallback: string): string {
           const val = data?.value?.replace(/^"|"$/g, '') || null;
           cachedUrl = val;
           return val;
+        })
+        .catch(() => null)
+        .finally(() => {
+          // Allow re-fetch if nothing was cached (e.g. first load before data existed)
+          if (!cachedUrl) fetchPromise = null;
         });
     }
 
