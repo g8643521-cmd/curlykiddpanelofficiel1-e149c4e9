@@ -124,6 +124,7 @@ const CheaterSearch = () => {
   const [sxStats, setSxStats] = useState<{ connected: boolean; latency: number | null; ticketCount: number }>({ connected: false, latency: null, ticketCount: 0 });
   const [dbStats, setDbStats] = useState<{ connected: boolean; tableCount: number; latency: number | null }>({ connected: false, tableCount: 0, latency: null });
   const hasAutoSearched = useRef(false);
+  const lastSearchRunRef = useRef<{ query: string; at: number } | null>(null);
 
   const fetchDbStats = async () => {
     try {
@@ -158,7 +159,7 @@ const CheaterSearch = () => {
     }
   }, [searchParams]);
 
-  // Trigger search once query is set from URL param
+  // Single auto-search path for URL-driven lookups
   useEffect(() => {
     if (pendingSearch.current && searchQuery === pendingSearch.current) {
       pendingSearch.current = null;
@@ -233,7 +234,9 @@ const CheaterSearch = () => {
 
 
   const handleSearch = async () => {
-    if (!searchQuery.trim()) {
+    const query = searchQuery.trim();
+
+    if (!query) {
       setResults([]);
       setHasSearched(false);
       setSxResult(null);
@@ -241,12 +244,21 @@ const CheaterSearch = () => {
       return;
     }
 
+    const now = Date.now();
+    if (
+      lastSearchRunRef.current &&
+      lastSearchRunRef.current.query === query &&
+      now - lastSearchRunRef.current.at < 1500
+    ) {
+      return;
+    }
+    lastSearchRunRef.current = { query, at: now };
+
     setIsLoading(true);
     setHasSearched(true);
     setSxResult(null);
     setSxDiscordUser(null);
     setSxError(null);
-    const query = searchQuery.trim();
     const isDiscordId = /^\d{17,19}$/.test(query);
     const isSteamHex = /^steam:/.test(query.toLowerCase()) || /^[a-f0-9]{15,17}$/i.test(query);
     const isFiveM = /^fivem:/.test(query.toLowerCase()) || /^\d{1,10}$/.test(query);
@@ -410,12 +422,6 @@ const CheaterSearch = () => {
     }).catch(err => console.error('Discord webhook failed:', err));
   };
 
-  // Auto-trigger search when query is set from URL param
-  useEffect(() => {
-    if (hasAutoSearched.current && searchQuery && !hasSearched && !isLoading) {
-      handleSearch();
-    }
-  }, [searchQuery]);
 
   const lookupExternalDB = async (discordId: string) => {
     setSxLoading(true);
