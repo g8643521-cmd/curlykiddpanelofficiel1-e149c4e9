@@ -300,23 +300,19 @@ const BotSetup = () => {
   const fetchServers = useCallback(async () => {
     setIsLoading(true);
     const { data: session } = await supabase.auth.getSession();
-    if (!session?.session?.user) { 
-      console.warn('fetchServers: No session found');
-      setIsLoading(false); 
-      return; 
+    if (!session?.session?.user) {
+      setIsLoading(false);
+      return;
     }
 
     const userId = session.session.user.id;
     await claimImportedDataForCurrentUser(userId);
-    console.log('fetchServers: Fetching for user', userId);
 
     const { data, error } = await supabase
       .from('discord_bot_servers')
       .select('id, user_id, guild_id, guild_name, guild_icon, member_count, webhook_url, manual_webhook_url, auto_scan_webhook_url, full_scan_webhook_url, info_channel_id, alert_channel_name, is_active, last_checked_at, created_at')
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
-
-    console.log('fetchServers: owned result', { count: data?.length, error });
 
     if (error) {
       console.error('fetchServers: Error fetching owned servers', error);
@@ -326,15 +322,15 @@ const BotSetup = () => {
 
     const ownedData = data || [];
     const ownedIds = new Set<string>(ownedData.map((s: any) => s.id as string));
-    
+
     // Also fetch shared servers
     const { data: shares } = await supabase
       .from('server_shares')
       .select('server_id')
       .eq('shared_with', userId);
-    
+
     let allServers = [...ownedData];
-    
+
     if (shares && shares.length > 0) {
       const sharedServerIds = shares.map((s: any) => s.server_id).filter((id: string) => !ownedIds.has(id));
       if (sharedServerIds.length > 0) {
@@ -346,13 +342,13 @@ const BotSetup = () => {
         if (sharedServers) allServers = [...allServers, ...sharedServers];
       }
     }
-    
-    console.log('fetchServers: Total servers (owned + shared)', allServers.length);
+
     setOwnedServerIds(ownedIds);
     setServers(allServers);
     fetchLastScanResults(allServers.map((server) => server.id));
+    setIsLoading(false);
 
-    // Refresh guild info in background (non-blocking)
+    // Refresh guild info in background (non-blocking, after initial render)
     supabase.functions.invoke('discord-member-check', {
       body: { action: 'fetch-icons' },
     }).then(async () => {
@@ -365,8 +361,7 @@ const BotSetup = () => {
         const sharedInList = allServers.filter(s => !ownedIds.has(s.id));
         setServers([...refreshed, ...sharedInList]);
       }
-    });
-    setIsLoading(false);
+    }).catch(() => {});
   }, [fetchLastScanResults]);
 
   // Fetch joins for a specific server (lazy-loaded)
