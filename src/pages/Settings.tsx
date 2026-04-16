@@ -219,13 +219,13 @@ const Settings = () => {
             transition={{ duration: 0.5 }}
             className="relative rounded-2xl overflow-hidden border border-border/30 shadow-2xl shadow-black/40 mb-6"
           >
-            <div className="relative h-36 sm:h-44 overflow-hidden">
+            <div className="relative h-44 sm:h-52 overflow-hidden">
               <img src={profileBanner} alt="" className="w-full h-full object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-card via-card/40 to-transparent" />
             </div>
-            <div className="relative px-6 pb-5 -mt-14">
-              <div className="flex items-end gap-4">
-                <div className="w-20 h-20 rounded-full shadow-xl shadow-primary/20 overflow-hidden bg-card shrink-0">
+            <div className="relative px-6 pb-6 -mt-16">
+              <div className="flex items-end gap-5">
+                <div className="w-24 h-24 rounded-full shadow-xl shadow-primary/20 overflow-hidden bg-card shrink-0">
                   {userInfo?.avatar_url ? (
                     <img src={userInfo.avatar_url} alt="" className="w-full h-full object-cover" />
                   ) : (
