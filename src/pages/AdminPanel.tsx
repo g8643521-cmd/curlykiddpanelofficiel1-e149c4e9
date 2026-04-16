@@ -154,17 +154,17 @@ const AdminPanel = () => {
   }
 
   const statCards = [
-    { label: 'Total Users', value: stats?.totalUsers || 0, icon: Users, color: 'primary', change: '+12%', up: true },
-    { label: 'Admins', value: stats?.totalAdmins || 0, icon: Crown, color: 'yellow', change: null, up: null },
-    { label: 'Moderators', value: stats?.totalModerators || 0, icon: ShieldCheck, color: 'cyan', change: null, up: null },
-    { label: 'Reports', value: stats?.totalCheaterReports || 0, icon: AlertTriangle, color: 'magenta', change: '+3', up: true },
+    { label: 'Total Users', value: stats?.totalUsers || 0, icon: Users, color: 'primary', hint: 'Registered accounts' },
+    { label: 'Administrators', value: stats?.totalAdmins || 0, icon: Crown, color: 'yellow', hint: 'Full access' },
+    { label: 'Moderators', value: stats?.totalModerators || 0, icon: ShieldCheck, color: 'cyan', hint: 'Limited access' },
+    { label: 'Cheater Reports', value: stats?.totalCheaterReports || 0, icon: AlertTriangle, color: 'magenta', hint: 'Total submitted' },
   ];
 
   const colorMap: Record<string, { bg: string; text: string; ring: string }> = {
-    primary: { bg: 'bg-primary/10', text: 'text-primary', ring: 'ring-primary/20' },
-    yellow: { bg: 'bg-[hsl(var(--yellow))]/10', text: 'text-[hsl(var(--yellow))]', ring: 'ring-[hsl(var(--yellow))]/20' },
-    cyan: { bg: 'bg-[hsl(var(--cyan))]/10', text: 'text-[hsl(var(--cyan))]', ring: 'ring-[hsl(var(--cyan))]/20' },
-    magenta: { bg: 'bg-[hsl(var(--magenta))]/10', text: 'text-[hsl(var(--magenta))]', ring: 'ring-[hsl(var(--magenta))]/20' },
+    primary: { bg: 'bg-primary/10', text: 'text-primary', ring: 'ring-primary/15' },
+    yellow: { bg: 'bg-[hsl(var(--yellow))]/10', text: 'text-[hsl(var(--yellow))]', ring: 'ring-[hsl(var(--yellow))]/15' },
+    cyan: { bg: 'bg-[hsl(var(--cyan))]/10', text: 'text-[hsl(var(--cyan))]', ring: 'ring-[hsl(var(--cyan))]/15' },
+    magenta: { bg: 'bg-[hsl(var(--magenta))]/10', text: 'text-[hsl(var(--magenta))]', ring: 'ring-[hsl(var(--magenta))]/15' },
   };
 
   const formatTimeAgo = (date: string) => {
@@ -187,69 +187,75 @@ const AdminPanel = () => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.25 }}
-            className="space-y-6"
+            className="space-y-8"
           >
+            {/* Section heading */}
+            <div className="flex items-end justify-between gap-4 pb-1">
+              <div>
+                <h2 className="text-[22px] font-semibold tracking-tight text-foreground">Overview</h2>
+                <p className="text-[13px] text-muted-foreground/70 mt-1">Platform health and key metrics at a glance.</p>
+              </div>
+              <button
+                onClick={fetchData}
+                disabled={isLoading}
+                className="inline-flex items-center gap-1.5 text-[12px] font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
+            </div>
+
             {/* Stat cards */}
-            <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
               {isLoading
                 ? [0, 1, 2, 3].map((i) => (
-                    <div key={i} className="rounded-xl border border-border/20 bg-card/40 p-5 animate-pulse h-[104px]" />
+                    <div key={i} className="rounded-xl border border-border/15 bg-card/40 p-5 animate-pulse h-[112px]" />
                   ))
                 : statCards.map((card, i) => {
                     const c = colorMap[card.color];
                     return (
                       <motion.div
                         key={card.label}
-                        initial={{ opacity: 0, y: 20 }}
+                        initial={{ opacity: 0, y: 16 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: i * 0.06, duration: 0.3 }}
-                        className="relative rounded-xl border border-border/20 bg-card/40 p-5 hover:border-border/40 transition-all duration-300 group overflow-hidden"
+                        transition={{ delay: i * 0.05, duration: 0.3 }}
+                        className="relative rounded-xl border border-border/15 bg-card/40 p-5 hover:border-border/30 transition-colors duration-200"
                       >
-                        <div className="flex items-start justify-between">
-                          <div className="space-y-1">
-                            <p className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider">{card.label}</p>
-                            <p className="text-3xl font-bold text-foreground tabular-nums">
-                              <AnimatedNumber value={card.value} />
-                            </p>
-                          </div>
-                          <div className={`w-10 h-10 rounded-lg ${c.bg} ring-1 ${c.ring} flex items-center justify-center`}>
-                            <card.icon className={`w-[18px] h-[18px] ${c.text}`} />
+                        <div className="flex items-start justify-between mb-4">
+                          <span className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-[0.08em]">{card.label}</span>
+                          <div className={`w-8 h-8 rounded-lg ${c.bg} ring-1 ${c.ring} flex items-center justify-center`}>
+                            <card.icon className={`w-4 h-4 ${c.text}`} />
                           </div>
                         </div>
-                        {card.change && (
-                          <div className="mt-2 flex items-center gap-1">
-                            <ArrowUpRight className="w-3 h-3 text-emerald-400" />
-                            <span className="text-[10px] font-semibold text-emerald-400">{card.change}</span>
-                            <span className="text-[10px] text-muted-foreground/50">vs last week</span>
-                          </div>
-                        )}
+                        <p className="text-[28px] font-semibold text-foreground tabular-nums leading-none">
+                          <AnimatedNumber value={card.value} />
+                        </p>
+                        <p className="text-[11px] text-muted-foreground/55 mt-2">{card.hint}</p>
                       </motion.div>
                     );
                   })}
             </div>
 
             {/* Two-column: Quick Actions + Recent Activity */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
               {/* Quick Actions */}
               <motion.div
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.25 }}
-                className="rounded-xl border border-border/20 bg-card/40 overflow-hidden"
+                className="lg:col-span-2 rounded-xl border border-border/15 bg-card/40 overflow-hidden"
               >
-                <div className="px-5 py-3.5 border-b border-border/10 flex items-center gap-2.5">
-                  <div className="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center">
-                    <Zap className="w-3.5 h-3.5 text-primary" />
-                  </div>
-                  <h3 className="text-sm font-semibold text-foreground">Quick Actions</h3>
+                <div className="px-5 py-4 border-b border-border/10">
+                  <h3 className="text-[13px] font-semibold text-foreground tracking-tight">Quick Actions</h3>
+                  <p className="text-[11px] text-muted-foreground/60 mt-0.5">Jump to common tasks</p>
                 </div>
-                <div className="p-3 grid grid-cols-2 gap-1.5">
+                <div className="p-2">
                   {[
                     { label: 'Manage Roles', icon: Crown, tab: 'roles', color: 'yellow' },
-                    { label: 'Cheater DB', icon: AlertTriangle, tab: 'cheaters', color: 'magenta' },
-                    { label: 'Webhooks', icon: Webhook, tab: 'webhooks', color: 'cyan' },
+                    { label: 'Cheater Database', icon: AlertTriangle, tab: 'cheaters', color: 'magenta' },
+                    { label: 'Discord Webhooks', icon: Webhook, tab: 'webhooks', color: 'cyan' },
                     { label: 'Export Data', icon: Database, tab: 'data', color: 'primary' },
-                    { label: 'Bot Config', icon: Bot, tab: 'bot', color: 'primary' },
+                    { label: 'Bot Configuration', icon: Bot, tab: 'bot', color: 'primary' },
                     { label: 'API Keys', icon: Key, tab: 'api-keys', color: 'yellow' },
                   ].map((action) => {
                     const c = colorMap[action.color];
@@ -257,13 +263,13 @@ const AdminPanel = () => {
                       <button
                         key={action.tab}
                         onClick={() => setSelectedTab(action.tab)}
-                        className="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-secondary/30 border border-transparent hover:border-border/20 transition-all text-left group cursor-pointer"
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-secondary/25 transition-colors text-left group"
                       >
                         <div className={`w-7 h-7 rounded-md ${c.bg} flex items-center justify-center shrink-0`}>
                           <action.icon className={`w-3.5 h-3.5 ${c.text}`} />
                         </div>
-                        <span className="text-xs font-medium text-muted-foreground group-hover:text-foreground transition-colors flex-1">{action.label}</span>
-                        <ChevronRight className="w-3 h-3 text-muted-foreground/20 group-hover:text-muted-foreground/60 transition-colors" />
+                        <span className="text-[13px] font-medium text-foreground/85 group-hover:text-foreground transition-colors flex-1">{action.label}</span>
+                        <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/30 group-hover:text-muted-foreground/70 group-hover:translate-x-0.5 transition-all" />
                       </button>
                     );
                   })}
@@ -275,38 +281,43 @@ const AdminPanel = () => {
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
-                className="rounded-xl border border-border/20 bg-card/40 overflow-hidden"
+                className="lg:col-span-3 rounded-xl border border-border/15 bg-card/40 overflow-hidden"
               >
-                <div className="px-5 py-3.5 border-b border-border/10 flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center">
-                      <Clock className="w-3.5 h-3.5 text-primary" />
-                    </div>
-                    <h3 className="text-sm font-semibold text-foreground">Recent Activity</h3>
+                <div className="px-5 py-4 border-b border-border/10 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-[13px] font-semibold text-foreground tracking-tight">Recent Activity</h3>
+                    <p className="text-[11px] text-muted-foreground/60 mt-0.5">Latest changes across the system</p>
                   </div>
                   <button
                     onClick={() => setSelectedTab('audit')}
-                    className="text-[10px] font-semibold text-primary hover:text-primary/80 transition-colors cursor-pointer flex items-center gap-1"
+                    className="text-[11px] font-medium text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
                   >
-                    View all <ChevronRight className="w-3 h-3" />
+                    View audit log <ChevronRight className="w-3 h-3" />
                   </button>
                 </div>
                 <div className="p-2">
                   {(!stats?.recentActivity || stats.recentActivity.length === 0) ? (
-                    <div className="py-8 text-center text-xs text-muted-foreground/50">No recent activity</div>
+                    <div className="py-12 text-center">
+                      <Activity className="w-6 h-6 text-muted-foreground/30 mx-auto mb-2" />
+                      <p className="text-[12px] text-muted-foreground/60">No recent activity recorded</p>
+                    </div>
                   ) : (
                     stats.recentActivity.map((event, i) => (
                       <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-secondary/15 transition-colors">
                         <div className="w-7 h-7 rounded-md bg-secondary/30 flex items-center justify-center shrink-0">
-                          <Activity className="w-3.5 h-3.5 text-muted-foreground/60" />
+                          <Activity className="w-3.5 h-3.5 text-muted-foreground/70" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium text-foreground/90 truncate capitalize">
+                          <p className="text-[13px] font-medium text-foreground/90 truncate capitalize">
                             {event.action.replace(/_/g, ' ')}
                           </p>
-                          <p className="text-[10px] text-muted-foreground/50 truncate">{event.table_name}</p>
+                          <p className="text-[11px] text-muted-foreground/55 truncate">
+                            {event.table_name || 'system'}
+                          </p>
                         </div>
-                        <span className="text-[10px] text-muted-foreground/40 whitespace-nowrap shrink-0">{formatTimeAgo(event.created_at)}</span>
+                        <span className="text-[11px] text-muted-foreground/45 tabular-nums whitespace-nowrap shrink-0">
+                          {formatTimeAgo(event.created_at)}
+                        </span>
                       </div>
                     ))
                   )}
@@ -314,43 +325,11 @@ const AdminPanel = () => {
               </motion.div>
             </div>
 
-            {/* System Status row */}
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.35 }}
-              className="rounded-xl border border-border/20 bg-card/40 overflow-hidden"
-            >
-              <div className="px-5 py-3.5 border-b border-border/10 flex items-center gap-2.5">
-                <div className="w-6 h-6 rounded-md bg-emerald-500/10 flex items-center justify-center">
-                  <Activity className="w-3.5 h-3.5 text-emerald-400" />
-                </div>
-                <h3 className="text-sm font-semibold text-foreground">System Status</h3>
-                <span className="ml-auto text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">All systems operational</span>
-              </div>
-              <div className="p-3 grid grid-cols-2 md:grid-cols-4 gap-2">
-                {[
-                  { label: 'Database', latency: '12ms' },
-                  { label: 'Authentication', latency: '8ms' },
-                  { label: 'Edge Functions', latency: '45ms' },
-                  { label: 'File Storage', latency: '23ms' },
-                ].map((service) => (
-                  <div key={service.label} className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-secondary/10 border border-border/10">
-                    <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_hsl(145,80%,45%,0.5)]" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-foreground/80">{service.label}</p>
-                    </div>
-                    <span className="text-[10px] font-mono text-muted-foreground/50">{service.latency}</span>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-
             {/* Social links */}
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
+              transition={{ delay: 0.35 }}
             >
               <SocialLinksPanel />
             </motion.div>
