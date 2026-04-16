@@ -163,29 +163,15 @@ const DatabaseExportPanel = () => {
             <p className="text-xs text-muted-foreground">Export live data, restore from backups, and manage your database with confidence.</p>
           </div>
           <Button
+          <Button
             variant="outline"
             size="sm"
-            onClick={() => {
-              setImportResult(null);
-              setTableCounts({});
-              setIsLoadingTables(true);
-              const refetch = async () => {
-                try {
-                  const { data } = await supabase.rpc('get_public_tables');
-                  if (data && Array.isArray(data)) {
-                    const names = data.map((r: any) => r.table_name || r).filter(Boolean).sort();
-                    if (names.length > 0) setTables(names);
-                  }
-                } catch {}
-                setIsLoadingTables(false);
-              };
-              refetch();
-              toast.success('Data refreshed');
-            }}
-            className="h-8 rounded-lg text-xs font-semibold border-border/40 shrink-0"
+            onClick={() => fetchCounts(tables)}
+            disabled={isLoadingCounts}
+            className="h-8 rounded-lg text-xs font-semibold border-border/40 shrink-0 gap-1.5"
           >
-            <RefreshCw className="h-3.5 w-3.5" />
-            Restart
+            <RefreshCw className={`h-3.5 w-3.5 ${isLoadingCounts ? 'animate-spin' : ''}`} />
+            Refresh
           </Button>
         </div>
       </div>
@@ -194,12 +180,20 @@ const DatabaseExportPanel = () => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="rounded-xl bg-secondary/20 border border-border/20 p-3 text-center">
             <Table2 className="h-4 w-4 mx-auto text-primary mb-1" />
-            <p className="text-lg font-bold text-foreground">{tables.length}</p>
+            {isLoadingTables ? (
+              <div className="h-6 w-10 mx-auto rounded bg-muted/40 animate-pulse my-0.5" />
+            ) : (
+              <p className="text-lg font-bold text-foreground tabular-nums">{tables.length}</p>
+            )}
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Tables</p>
           </div>
           <div className="rounded-xl bg-secondary/20 border border-border/20 p-3 text-center">
             <HardDrive className="h-4 w-4 mx-auto text-primary mb-1" />
-            <p className="text-lg font-bold text-foreground">{totalRows.toLocaleString()}</p>
+            {isLoadingCounts ? (
+              <div className="h-6 w-16 mx-auto rounded bg-muted/40 animate-pulse my-0.5" />
+            ) : (
+              <p className="text-lg font-bold text-foreground tabular-nums">{totalRows.toLocaleString()}</p>
+            )}
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total Rows</p>
           </div>
           <div className="rounded-xl bg-secondary/20 border border-border/20 p-3 text-center">
@@ -208,7 +202,10 @@ const DatabaseExportPanel = () => {
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Protected</p>
           </div>
           <div className="rounded-xl bg-secondary/20 border border-border/20 p-3 text-center">
-            <Clock className="h-4 w-4 mx-auto text-primary mb-1" />
+            <div className="flex items-center justify-center gap-1.5 mb-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <Clock className="h-4 w-4 text-primary" />
+            </div>
             <p className="text-lg font-bold text-foreground">Live</p>
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Status</p>
           </div>
