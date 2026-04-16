@@ -12,7 +12,7 @@ interface AddRoleByEmailProps {
 
 const AddRoleByEmail = ({ onRoleAssigned }: AddRoleByEmailProps) => {
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState<'admin' | 'moderator' | 'user' | 'mod_creator'>('admin');
+  const [role, setRole] = useState<'admin' | 'moderator' | 'user' | 'mod_creator' | 'integrations_manager'>('admin');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (event?: FormEvent) => {
