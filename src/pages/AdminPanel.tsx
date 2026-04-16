@@ -326,6 +326,9 @@ const AdminPanel = () => {
               </motion.div>
             </div>
 
+            {/* System Status */}
+            <SystemStatusPanel />
+
             {/* Social links */}
             <motion.div
               initial={{ opacity: 0, y: 16 }}
