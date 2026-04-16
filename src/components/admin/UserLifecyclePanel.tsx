@@ -128,7 +128,21 @@ export default function UserLifecyclePanel() {
   const [riskDialogOpen, setRiskDialogOpen] = useState(false);
   const [newRiskScore, setNewRiskScore] = useState('0');
 
-  // ── Fetch Users ────────────────────────────────────
+  const assignRole = async (userId: string, email: string, role: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('assign-role', {
+        body: { email, role },
+      });
+      if (error || data?.error) {
+        toast.error(data?.error || error?.message || 'Failed to assign role');
+      } else {
+        toast.success(`${role} assigned to ${email}`);
+      }
+    } catch {
+      toast.error('Failed to assign role');
+    }
+  };
+
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
