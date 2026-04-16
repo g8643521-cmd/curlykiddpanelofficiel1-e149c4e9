@@ -23,9 +23,10 @@ const ROLE_META: Record<string, { icon: typeof Crown; color: string; badgeClass:
   admin:       { icon: Shield,      color: 'text-primary',              badgeClass: 'bg-primary/10 text-primary border-primary/20',                                       label: 'Admin',       dotColor: 'bg-primary' },
   moderator:   { icon: ShieldCheck, color: 'text-[hsl(var(--cyan))]',   badgeClass: 'bg-[hsl(var(--cyan))]/10 text-[hsl(var(--cyan))] border-[hsl(var(--cyan))]/20',       label: 'Moderator',   dotColor: 'bg-[hsl(var(--cyan))]' },
   mod_creator: { icon: ShieldCheck, color: 'text-[hsl(var(--green))]',  badgeClass: 'bg-[hsl(var(--green))]/10 text-[hsl(var(--green))] border-[hsl(var(--green))]/20',     label: 'Mod Creator', dotColor: 'bg-[hsl(var(--green))]' },
+  integrations_manager: { icon: Shield, color: 'text-primary', badgeClass: 'bg-primary/10 text-primary border-primary/20', label: 'Integrations', dotColor: 'bg-primary' },
 };
 
-const VISIBLE_ROLES = ['admin', 'moderator', 'user'];
+const VISIBLE_ROLES = ['owner', 'admin', 'moderator', 'mod_creator', 'integrations_manager'];
 
 const RoleManagementPanel = () => {
   const [entries, setEntries] = useState<RoleEntry[]>([]);
