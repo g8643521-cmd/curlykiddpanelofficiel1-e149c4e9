@@ -1,4 +1,5 @@
 import { useRef, useCallback, useEffect, useState } from "react";
+import satelliteMapImage from "@/assets/gta-v-satellite-map-v2.png";
 import { mapPercentToWorld, worldToMapPercent } from "@/lib/gtaMap";
 
 interface MapMarker {
@@ -33,9 +34,11 @@ function easeOutBack(t: number): number {
 const CoordinateMap2D = ({ markers, selectedMarkerId, onMapClick, onMouseCoordsChange }: CoordinateMap2DProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const baseMapRef = useRef<HTMLImageElement | null>(null);
   const stateRef = useRef({ offsetX: 0, offsetY: 0, zoom: 1, dragging: false, startX: 0, startY: 0, movedPixels: 0 });
   const mouseRef = useRef<{ x: number; y: number } | null>(null);
   const tilesRef = useRef<Map<string, HTMLImageElement>>(new Map());
+  const tileSupportRef = useRef<"unknown" | "available" | "missing">("unknown");
   const rafRef = useRef<number | null>(null);
   const markerAnimRef = useRef<Map<string, number>>(new Map());
   const isHoveringRef = useRef(false);
@@ -50,13 +53,33 @@ const CoordinateMap2D = ({ markers, selectedMarkerId, onMapClick, onMouseCoordsC
   const onMouseCoordsChangeRef = useRef(onMouseCoordsChange);
   onMouseCoordsChangeRef.current = onMouseCoordsChange;
 
+  const getBaseMap = useCallback((onLoad: () => void): HTMLImageElement => {
+    let img = baseMapRef.current;
+    if (!img) {
+      img = new Image();
+      img.src = satelliteMapImage;
+      img.onload = onLoad;
+      baseMapRef.current = img;
+    }
+    return img;
+  }, []);
+
   const getTile = useCallback((key: string, url: string, onLoad: () => void): HTMLImageElement => {
     let img = tilesRef.current.get(key);
     if (!img) {
       img = new Image();
       img.crossOrigin = "anonymous";
       img.src = url;
-      img.onload = onLoad;
+      img.onload = () => {
+        tileSupportRef.current = "available";
+        onLoad();
+      };
+      img.onerror = () => {
+        if (tileSupportRef.current !== "available") {
+          tileSupportRef.current = "missing";
+        }
+        onLoad();
+      };
       tilesRef.current.set(key, img);
     }
     return img;
@@ -87,39 +110,46 @@ const CoordinateMap2D = ({ markers, selectedMarkerId, onMapClick, onMouseCoordsC
     ctx.fillStyle = "#0a0e17";
     ctx.fillRect(0, 0, width, height);
 
+    const baseMap = getBaseMap(() => scheduleDraw());
+    if (baseMap.complete && baseMap.naturalWidth > 0) {
+      ctx.drawImage(baseMap, s.offsetX, s.offsetY, totalMapPx, totalMapPx);
+    }
+
     const idealZ = Math.log2(Math.max(1, s.zoom));
     const tileZoom = Math.min(MAX_TILE_ZOOM, Math.max(MIN_TILE_ZOOM, Math.round(idealZ)));
     const tilesPerAxis = Math.pow(2, tileZoom);
     const tileScreenSize = totalMapPx / tilesPerAxis;
 
-    const startTileX = Math.max(0, Math.floor(-s.offsetX / tileScreenSize));
-    const startTileY = Math.max(0, Math.floor(-s.offsetY / tileScreenSize));
-    const endTileX = Math.min(tilesPerAxis - 1, Math.floor((width - s.offsetX) / tileScreenSize));
-    const endTileY = Math.min(tilesPerAxis - 1, Math.floor((height - s.offsetY) / tileScreenSize));
+    if (tileSupportRef.current !== "missing") {
+      const startTileX = Math.max(0, Math.floor(-s.offsetX / tileScreenSize));
+      const startTileY = Math.max(0, Math.floor(-s.offsetY / tileScreenSize));
+      const endTileX = Math.min(tilesPerAxis - 1, Math.floor((width - s.offsetX) / tileScreenSize));
+      const endTileY = Math.min(tilesPerAxis - 1, Math.floor((height - s.offsetY) / tileScreenSize));
 
-    for (let tx = startTileX; tx <= endTileX; tx++) {
-      for (let ty = startTileY; ty <= endTileY; ty++) {
-        const drawX = tx * tileScreenSize + s.offsetX;
-        const drawY = ty * tileScreenSize + s.offsetY;
-        const key = `${tileZoom}_${tx}_${ty}`;
-        const url = `${TILE_BASE}/${tileZoom}/${tx}/${ty}.jpg`;
-        const img = getTile(key, url, () => scheduleDraw());
+      for (let tx = startTileX; tx <= endTileX; tx++) {
+        for (let ty = startTileY; ty <= endTileY; ty++) {
+          const drawX = tx * tileScreenSize + s.offsetX;
+          const drawY = ty * tileScreenSize + s.offsetY;
+          const key = `${tileZoom}_${tx}_${ty}`;
+          const url = `${TILE_BASE}/${tileZoom}/${tx}/${ty}.jpg`;
+          const img = getTile(key, url, () => scheduleDraw());
 
-        if (img.complete && img.naturalWidth > 0) {
-          ctx.drawImage(img, drawX, drawY, tileScreenSize + 0.5, tileScreenSize + 0.5);
-        } else {
-          for (let fz = tileZoom - 1; fz >= MIN_TILE_ZOOM; fz--) {
-            const fTilesPerAxis = Math.pow(2, fz);
-            const ftx = Math.floor(tx * fTilesPerAxis / tilesPerAxis);
-            const fty = Math.floor(ty * fTilesPerAxis / tilesPerAxis);
-            const fKey = `${fz}_${ftx}_${fty}`;
-            const fImg = tilesRef.current.get(fKey);
-            if (fImg?.complete && fImg.naturalWidth > 0) {
-              const srcX = ((tx / tilesPerAxis) - (ftx / fTilesPerAxis)) * fTilesPerAxis * TILE_SIZE;
-              const srcY = ((ty / tilesPerAxis) - (fty / fTilesPerAxis)) * fTilesPerAxis * TILE_SIZE;
-              const srcSize = TILE_SIZE * (fTilesPerAxis / tilesPerAxis);
-              ctx.drawImage(fImg, srcX, srcY, srcSize, srcSize, drawX, drawY, tileScreenSize + 0.5, tileScreenSize + 0.5);
-              break;
+          if (img.complete && img.naturalWidth > 0) {
+            ctx.drawImage(img, drawX, drawY, tileScreenSize + 0.5, tileScreenSize + 0.5);
+          } else {
+            for (let fz = tileZoom - 1; fz >= MIN_TILE_ZOOM; fz--) {
+              const fTilesPerAxis = Math.pow(2, fz);
+              const ftx = Math.floor(tx * fTilesPerAxis / tilesPerAxis);
+              const fty = Math.floor(ty * fTilesPerAxis / tilesPerAxis);
+              const fKey = `${fz}_${ftx}_${fty}`;
+              const fImg = tilesRef.current.get(fKey);
+              if (fImg?.complete && fImg.naturalWidth > 0) {
+                const srcX = ((tx / tilesPerAxis) - (ftx / fTilesPerAxis)) * fTilesPerAxis * TILE_SIZE;
+                const srcY = ((ty / tilesPerAxis) - (fty / fTilesPerAxis)) * fTilesPerAxis * TILE_SIZE;
+                const srcSize = TILE_SIZE * (fTilesPerAxis / tilesPerAxis);
+                ctx.drawImage(fImg, srcX, srcY, srcSize, srcSize, drawX, drawY, tileScreenSize + 0.5, tileScreenSize + 0.5);
+                break;
+              }
             }
           }
         }
@@ -246,7 +276,7 @@ const CoordinateMap2D = ({ markers, selectedMarkerId, onMapClick, onMouseCoordsC
 
       ctx.restore();
     }
-  }, [getTile]); // Stable — only depends on getTile which is also stable
+  }, [getBaseMap, getTile]); // Stable — only depends on cached image loaders
 
   const scheduleDraw = useCallback(() => {
     if (rafRef.current !== null) return;
