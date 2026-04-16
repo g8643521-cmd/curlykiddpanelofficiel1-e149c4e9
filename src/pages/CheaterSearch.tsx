@@ -138,18 +138,16 @@ const CheaterSearch = () => {
   const lastSearchRunRef = useRef<{ query: string; at: number } | null>(null);
 
   const fetchDbStats = async () => {
-    // Use cached RPC for real table count — pingRpc handles caching (60s TTL)
     const start = performance.now();
     const { data, error } = await supabase.rpc('get_public_tables');
     const latency = Math.round(performance.now() - start);
     if (!error && data) {
-      // Manually populate cache so hydration works on remount
-      (await import('@/lib/connectionCache')).invalidateCache; // no-op import to ensure module loaded
       setDbStats({ connected: true, tableCount: data.length, latency });
     } else {
       setDbStats({ connected: false, tableCount: 0, latency: null });
     }
   };
+
 
 
   useEffect(() => {
