@@ -40,14 +40,14 @@ const ROLE_DISPLAY: Record<string, { label: string; color: string }> = {
 const SettingRow = ({ icon: Icon, iconColor = 'text-primary', label, description, children }: {
   icon: any; iconColor?: string; label: string; description?: string; children: React.ReactNode;
 }) => (
-  <div className="flex items-center justify-between gap-4 px-4 py-3.5 hover:bg-muted/10 transition-colors duration-150">
-    <div className="flex items-center gap-3 min-w-0">
-      <div className="p-1.5 rounded-lg bg-muted/30 shrink-0">
+  <div className="flex items-center justify-between gap-6 px-6 py-4 hover:bg-muted/[0.04] transition-colors duration-150">
+    <div className="flex items-start gap-3 min-w-0">
+      <div className="p-2 rounded-lg bg-muted/20 shrink-0 mt-0.5">
         <Icon className={`w-4 h-4 ${iconColor}`} />
       </div>
       <div className="min-w-0">
-        <p className="text-sm font-medium text-foreground">{label}</p>
-        {description && <p className="text-[11px] text-muted-foreground/60 mt-0.5 leading-tight">{description}</p>}
+        <p className="text-[14px] font-medium text-foreground leading-tight">{label}</p>
+        {description && <p className="text-[12px] text-muted-foreground/75 mt-1 leading-snug">{description}</p>}
       </div>
     </div>
     <div className="shrink-0">{children}</div>
@@ -57,22 +57,22 @@ const SettingRow = ({ icon: Icon, iconColor = 'text-primary', label, description
 const SectionCard = ({ title, icon: Icon, delay, children, variant = 'default' }: {
   title: string; icon: any; delay: number; children: React.ReactNode; variant?: 'default' | 'danger';
 }) => (
-  <motion.div
+  <motion.section
     initial={{ opacity: 0, y: 12 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ delay, duration: 0.35 }}
-    className={`rounded-xl border overflow-hidden backdrop-blur-sm ${
-      variant === 'danger' ? 'border-destructive/20 bg-card/60' : 'border-border/25 bg-card/60'
+    className={`rounded-2xl overflow-hidden backdrop-blur-sm shadow-lg shadow-black/10 ${
+      variant === 'danger'
+        ? 'border border-destructive/15 bg-card/50'
+        : 'border border-border/20 bg-card/50'
     }`}
   >
-    <div className={`px-4 py-3 border-b flex items-center gap-2 ${
-      variant === 'danger' ? 'border-destructive/10' : 'border-border/15'
-    }`}>
-      <Icon className={`w-3.5 h-3.5 ${variant === 'danger' ? 'text-destructive/70' : 'text-primary/70'}`} />
-      <h3 className="text-xs font-semibold text-foreground/80 uppercase tracking-wider">{title}</h3>
-    </div>
-    <div className="divide-y divide-border/10">{children}</div>
-  </motion.div>
+    <header className="px-6 pt-5 pb-3 flex items-center gap-2.5">
+      <Icon className={`w-4 h-4 ${variant === 'danger' ? 'text-destructive/80' : 'text-primary'}`} />
+      <h2 className="text-[13px] font-semibold text-foreground/90 uppercase tracking-[0.12em]">{title}</h2>
+    </header>
+    <div className="divide-y divide-border/[0.08]">{children}</div>
+  </motion.section>
 );
 
 const Settings = () => {
