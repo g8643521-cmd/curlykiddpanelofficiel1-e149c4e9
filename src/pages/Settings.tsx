@@ -258,21 +258,25 @@ const Settings = () => {
             </div>
           </motion.div>
 
-          <div className="space-y-4">
+          <div className="space-y-6">
             {/* Appearance & Language */}
             <SectionCard title={t('settings.appearance')} icon={Palette} delay={0.1}>
               <SettingRow icon={Globe} label={t('settings.language')} description={t('settings.choose_language')}>
-                <div className="flex gap-1">
+                <div className="inline-flex p-0.5 bg-muted/30 rounded-lg" role="tablist">
                   <button
+                    role="tab"
+                    aria-selected={lang === 'en'}
                     onClick={() => setLang('en')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
-                      lang === 'en' ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-muted/30 text-muted-foreground hover:text-foreground'
+                    className={`px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all duration-200 ${
+                      lang === 'en' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >EN</button>
                   <button
+                    role="tab"
+                    aria-selected={lang === 'da'}
                     onClick={() => setLang('da')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
-                      lang === 'da' ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-muted/30 text-muted-foreground hover:text-foreground'
+                    className={`px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all duration-200 ${
+                      lang === 'da' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >DA</button>
                 </div>
@@ -285,35 +289,69 @@ const Settings = () => {
               </SettingRow>
             </SectionCard>
 
-            {/* Sound & Notifications */}
+            {/* Sound */}
             <SectionCard title={t('settings.sound_notif')} icon={Volume2} delay={0.15}>
               <SettingRow icon={Volume2} label={t('settings.sound_effects')} description={t('settings.sound_desc2')}>
                 <Switch checked={soundEnabled} onCheckedChange={handleSoundToggle} />
               </SettingRow>
               {soundEnabled && (
-                <div className="px-4 py-3">
-                  <p className="text-[11px] text-muted-foreground/60 uppercase tracking-wider mb-2 font-medium">{t('settings.click_sound')}</p>
-                  <div className="grid grid-cols-1 gap-1">
-                    {CLICK_SOUND_PRESETS.map((preset) => (
-                      <button
-                        key={preset.id}
-                        onClick={() => {
-                          setClickPreset(preset.id);
-                          soundEffects.setClickPreset(preset.id);
-                          soundEffects.playClick(preset.id);
-                        }}
-                        className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all duration-200 ${
-                          clickPreset === preset.id
-                            ? 'bg-primary/10 border border-primary/30 text-foreground'
-                            : 'border border-transparent text-muted-foreground hover:bg-muted/15 hover:text-foreground'
-                        }`}
-                      >
-                        <span className="font-medium">{preset.label}</span>
-                        {clickPreset === preset.id && (
-                          <span className="text-[10px] text-primary font-semibold px-2 py-0.5 bg-primary/10 rounded-md">{t('settings.active')}</span>
-                        )}
-                      </button>
-                    ))}
+                <div className="px-6 py-4 bg-muted/[0.02]">
+                  <p className="text-[11px] text-muted-foreground/70 uppercase tracking-[0.1em] mb-3 font-semibold">{t('settings.click_sound')}</p>
+                  <div role="radiogroup" className="flex flex-col gap-1.5">
+                    {CLICK_SOUND_PRESETS.map((preset) => {
+                      const isSelected = clickPreset === preset.id;
+                      return (
+                        <div
+                          key={preset.id}
+                          role="radio"
+                          aria-checked={isSelected}
+                          tabIndex={0}
+                          onClick={() => {
+                            setClickPreset(preset.id);
+                            soundEffects.setClickPreset(preset.id);
+                            soundEffects.playClick(preset.id);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              setClickPreset(preset.id);
+                              soundEffects.setClickPreset(preset.id);
+                              soundEffects.playClick(preset.id);
+                            }
+                          }}
+                          className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-all duration-150 ${
+                            isSelected
+                              ? 'bg-primary/10 ring-1 ring-primary/40'
+                              : 'hover:bg-muted/15'
+                          }`}
+                        >
+                          <span
+                            className={`flex items-center justify-center w-5 h-5 rounded-full border-2 transition-colors ${
+                              isSelected ? 'border-primary' : 'border-muted-foreground/40 group-hover:border-muted-foreground/70'
+                            }`}
+                          >
+                            {isSelected && <span className="w-2 h-2 rounded-full bg-primary" />}
+                          </span>
+                          <span className={`flex-1 text-[13px] font-medium ${isSelected ? 'text-foreground' : 'text-muted-foreground group-hover:text-foreground'}`}>
+                            {preset.label}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              soundEffects.playClick(preset.id);
+                            }}
+                            aria-label={`Preview ${preset.label}`}
+                            className="p-1.5 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-muted/30 transition-colors"
+                          >
+                            <Play className="w-3.5 h-3.5 fill-current" />
+                          </button>
+                          {isSelected && (
+                            <Check className="w-3.5 h-3.5 text-primary" />
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -333,28 +371,51 @@ const Settings = () => {
             <SectionCard title={t('settings.data')} icon={Download} delay={0.25}>
               <SettingRow icon={Download} label={t('settings.export_data')} description={t('settings.export_desc2')}>
                 <Button
-                  variant="outline"
                   size="sm"
                   onClick={exportUserData}
                   disabled={isExporting}
-                  className="h-8 text-xs rounded-lg border-border/30 hover:border-primary/30 hover:bg-primary/5"
+                  className="h-8 text-xs rounded-lg gap-1.5"
                 >
+                  <Download className="w-3.5 h-3.5" />
                   {isExporting ? t('settings.exporting') : t('settings.export')}
                 </Button>
               </SettingRow>
             </SectionCard>
 
             {/* Danger Zone */}
-            <SectionCard title={t('settings.danger_zone')} icon={Trash2} delay={0.3} variant="danger">
+            <SectionCard title={t('settings.danger_zone')} icon={AlertTriangle} delay={0.3} variant="danger">
               <SettingRow icon={Trash2} iconColor="text-destructive/70" label={t('settings.clear_history')} description={t('settings.clear_desc2')}>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={clearSearchHistory}
-                  className="h-8 text-xs rounded-lg border-destructive/30 text-destructive hover:bg-destructive/10"
-                >
-                  {t('settings.clear')}
-                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs rounded-lg border-destructive/40 text-destructive/90 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/60"
+                    >
+                      {t('settings.clear')}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle className="flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4 text-destructive" />
+                        {t('settings.clear_history')}?
+                      </AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will permanently delete your entire search history. This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={clearSearchHistory}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Yes, clear history
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </SettingRow>
             </SectionCard>
           </div>
