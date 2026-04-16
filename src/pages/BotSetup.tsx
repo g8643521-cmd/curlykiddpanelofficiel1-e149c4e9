@@ -462,7 +462,7 @@ const BotSetup = () => {
 
       // Auto-create channels & webhooks if none provided (auto mode)
       if (!effectiveWebhookUrl && addMode === 'auto') {
-        toast.info('Creating channels and webhooks automatically...');
+        toast.info('Checking existing channels and webhooks...');
         const { data: whData, error: whError } = await supabase.functions.invoke('discord-member-check', {
           body: { action: 'create-webhook', guildId },
         });
@@ -478,8 +478,17 @@ const BotSetup = () => {
         (window as any).__fullScanWebhookUrl = whData.full_scan_webhook_url;
         (window as any).__infoChannelId = whData.info_channel_id;
 
-        const channelNames = Object.values(whData.channels || {}).map((c: any) => `#${c.name}`).join(', ');
-        toast.success(`Kanaler oprettet: ${channelNames}`);
+        if (whData.all_existed) {
+          const skipped = (whData.skipped_channels || []).map((c: string) => `#${c}`).join(', ');
+          toast.info(`Channels already exist (${skipped}) — no new channels were created. Using existing webhooks.`);
+        } else {
+          const created = (whData.created_channels || []).map((c: string) => `#${c}`).join(', ');
+          const skipped = (whData.skipped_channels || []).map((c: string) => `#${c}`).join(', ');
+          const parts: string[] = [];
+          if (created) parts.push(`Created: ${created}`);
+          if (skipped) parts.push(`Already existed: ${skipped}`);
+          toast.success(parts.join(' · '));
+        }
       }
 
       if (!effectiveWebhookUrl) {

@@ -452,9 +452,15 @@ Deno.serve(async (req) => {
       const existingChannels = (await channelsRes.json()) as any[];
 
       // Helper: find or create a text channel
-      async function findOrCreateChannel(name: string, topic: string): Promise<{ id: string; name: string }> {
+      const skippedChannels: string[] = [];
+      const createdChannels: string[] = [];
+
+      async function findOrCreateChannel(name: string, topic: string): Promise<{ id: string; name: string; existed: boolean }> {
         const existing = existingChannels.find((c: any) => c.type === 0 && c.name === name);
-        if (existing) return { id: existing.id, name: existing.name };
+        if (existing) {
+          skippedChannels.push(name);
+          return { id: existing.id, name: existing.name, existed: true };
+        }
 
         const createRes = await fetchWithRetry(
           `${DISCORD_API}/guilds/${targetGuildId}/channels`,
@@ -472,11 +478,24 @@ Deno.serve(async (req) => {
           throw new Error(`Failed to create #${name}: ${createRes.status} ${errText}`);
         }
         const ch = await createRes.json() as any;
-        return { id: ch.id, name: ch.name };
+        createdChannels.push(name);
+        return { id: ch.id, name: ch.name, existed: false };
       }
 
-      // Helper: create webhook in a channel
-      async function createWebhookInChannel(channelId: string, webhookName: string): Promise<string> {
+      // Helper: find existing webhook or create one in a channel
+      async function findOrCreateWebhook(channelId: string, webhookName: string): Promise<string> {
+        const listRes = await fetchWithRetry(
+          `${DISCORD_API}/channels/${channelId}/webhooks`,
+          { headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` } },
+        );
+        if (listRes.ok) {
+          const webhooks = await listRes.json() as any[];
+          const existing = webhooks.find((w: any) => w.name === webhookName && w.token);
+          if (existing) {
+            return `https://discord.com/api/webhooks/${existing.id}/${existing.token}`;
+          }
+        }
+
         const res = await fetchWithRetry(
           `${DISCORD_API}/channels/${channelId}/webhooks`,
           {
@@ -497,16 +516,18 @@ Deno.serve(async (req) => {
       }
 
       try {
-        // 1. Create auto-scan channel + webhook
+        // 1. Auto-scan channel + webhook
         const autoScanChannel = await findOrCreateChannel("auto-scan-alerts", "Automatic scan alerts from CurlyKidd Bot");
-        const autoScanWebhookUrl = await createWebhookInChannel(autoScanChannel.id, "CurlyKidd Auto-Scan");
+        const autoScanWebhookUrl = await findOrCreateWebhook(autoScanChannel.id, "CurlyKidd Auto-Scan");
 
-        // 2. Create full-scan channel + webhook
+        // 2. Full-scan channel + webhook
         const fullScanChannel = await findOrCreateChannel("full-scan-alerts", "Full scan alerts from CurlyKidd Bot");
-        const fullScanWebhookUrl = await createWebhookInChannel(fullScanChannel.id, "CurlyKidd Full-Scan");
+        const fullScanWebhookUrl = await findOrCreateWebhook(fullScanChannel.id, "CurlyKidd Full-Scan");
 
-        // 3. Create info channel (no webhook needed)
+        // 3. Info channel (no webhook needed)
         const infoChannel = await findOrCreateChannel("curlykidd-info", "Server info & stats from CurlyKidd Bot");
+
+        const allExisted = skippedChannels.length === 3 && createdChannels.length === 0;
 
         const BOT_LOGO = "https://ucjpepubcxhtjxumowwj.supabase.co/storage/v1/object/public/public-assets/bot-avatar.png";
 
@@ -543,6 +564,8 @@ Deno.serve(async (req) => {
           },
         ];
 
+        // Only post welcome messages if channels were newly created
+        if (!allExisted) {
         // ── Auto-Scan channel message ──
         await fetchWithRetry(
           `${DISCORD_API}/channels/${autoScanChannel.id}/messages`,
@@ -638,10 +661,14 @@ Deno.serve(async (req) => {
             }),
           },
         );
+        } // end if (!allExisted)
 
         return new Response(
           JSON.stringify({
             success: true,
+            all_existed: allExisted,
+            skipped_channels: skippedChannels,
+            created_channels: createdChannels,
             webhook_url: autoScanWebhookUrl,
             auto_scan_webhook_url: autoScanWebhookUrl,
             full_scan_webhook_url: fullScanWebhookUrl,
