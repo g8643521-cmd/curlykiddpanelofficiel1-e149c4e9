@@ -1,6 +1,17 @@
 import { useEffect, useState, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Globe, Volume2, Download, Trash2, Bell, BellOff, Monitor, Palette, Shield, EyeOff, Zap, Settings2 } from 'lucide-react';
+import { Globe, Volume2, Download, Trash2, Bell, BellOff, Monitor, Palette, Shield, EyeOff, Zap, Settings2, Play, Check, AlertTriangle } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { useI18n } from '@/lib/i18n';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -29,14 +40,14 @@ const ROLE_DISPLAY: Record<string, { label: string; color: string }> = {
 const SettingRow = ({ icon: Icon, iconColor = 'text-primary', label, description, children }: {
   icon: any; iconColor?: string; label: string; description?: string; children: React.ReactNode;
 }) => (
-  <div className="flex items-center justify-between gap-4 px-4 py-3.5 hover:bg-muted/10 transition-colors duration-150">
-    <div className="flex items-center gap-3 min-w-0">
-      <div className="p-1.5 rounded-lg bg-muted/30 shrink-0">
+  <div className="flex items-center justify-between gap-6 px-6 py-4 hover:bg-muted/[0.04] transition-colors duration-150">
+    <div className="flex items-start gap-3 min-w-0">
+      <div className="p-2 rounded-lg bg-muted/20 shrink-0 mt-0.5">
         <Icon className={`w-4 h-4 ${iconColor}`} />
       </div>
       <div className="min-w-0">
-        <p className="text-sm font-medium text-foreground">{label}</p>
-        {description && <p className="text-[11px] text-muted-foreground/60 mt-0.5 leading-tight">{description}</p>}
+        <p className="text-[14px] font-medium text-foreground leading-tight">{label}</p>
+        {description && <p className="text-[12px] text-muted-foreground/75 mt-1 leading-snug">{description}</p>}
       </div>
     </div>
     <div className="shrink-0">{children}</div>
@@ -46,22 +57,22 @@ const SettingRow = ({ icon: Icon, iconColor = 'text-primary', label, description
 const SectionCard = ({ title, icon: Icon, delay, children, variant = 'default' }: {
   title: string; icon: any; delay: number; children: React.ReactNode; variant?: 'default' | 'danger';
 }) => (
-  <motion.div
+  <motion.section
     initial={{ opacity: 0, y: 12 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ delay, duration: 0.35 }}
-    className={`rounded-xl border overflow-hidden backdrop-blur-sm ${
-      variant === 'danger' ? 'border-destructive/20 bg-card/60' : 'border-border/25 bg-card/60'
+    className={`rounded-2xl overflow-hidden backdrop-blur-sm shadow-lg shadow-black/10 ${
+      variant === 'danger'
+        ? 'border border-destructive/15 bg-card/50'
+        : 'border border-border/20 bg-card/50'
     }`}
   >
-    <div className={`px-4 py-3 border-b flex items-center gap-2 ${
-      variant === 'danger' ? 'border-destructive/10' : 'border-border/15'
-    }`}>
-      <Icon className={`w-3.5 h-3.5 ${variant === 'danger' ? 'text-destructive/70' : 'text-primary/70'}`} />
-      <h3 className="text-xs font-semibold text-foreground/80 uppercase tracking-wider">{title}</h3>
-    </div>
-    <div className="divide-y divide-border/10">{children}</div>
-  </motion.div>
+    <header className="px-6 pt-5 pb-3 flex items-center gap-2.5">
+      <Icon className={`w-4 h-4 ${variant === 'danger' ? 'text-destructive/80' : 'text-primary'}`} />
+      <h2 className="text-[13px] font-semibold text-foreground/90 uppercase tracking-[0.12em]">{title}</h2>
+    </header>
+    <div className="divide-y divide-border/[0.08]">{children}</div>
+  </motion.section>
 );
 
 const Settings = () => {
@@ -247,21 +258,25 @@ const Settings = () => {
             </div>
           </motion.div>
 
-          <div className="space-y-4">
+          <div className="space-y-6">
             {/* Appearance & Language */}
             <SectionCard title={t('settings.appearance')} icon={Palette} delay={0.1}>
               <SettingRow icon={Globe} label={t('settings.language')} description={t('settings.choose_language')}>
-                <div className="flex gap-1">
+                <div className="inline-flex p-0.5 bg-muted/30 rounded-lg" role="tablist">
                   <button
+                    role="tab"
+                    aria-selected={lang === 'en'}
                     onClick={() => setLang('en')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
-                      lang === 'en' ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-muted/30 text-muted-foreground hover:text-foreground'
+                    className={`px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all duration-200 ${
+                      lang === 'en' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >EN</button>
                   <button
+                    role="tab"
+                    aria-selected={lang === 'da'}
                     onClick={() => setLang('da')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
-                      lang === 'da' ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-muted/30 text-muted-foreground hover:text-foreground'
+                    className={`px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all duration-200 ${
+                      lang === 'da' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >DA</button>
                 </div>
@@ -274,35 +289,69 @@ const Settings = () => {
               </SettingRow>
             </SectionCard>
 
-            {/* Sound & Notifications */}
+            {/* Sound */}
             <SectionCard title={t('settings.sound_notif')} icon={Volume2} delay={0.15}>
               <SettingRow icon={Volume2} label={t('settings.sound_effects')} description={t('settings.sound_desc2')}>
                 <Switch checked={soundEnabled} onCheckedChange={handleSoundToggle} />
               </SettingRow>
               {soundEnabled && (
-                <div className="px-4 py-3">
-                  <p className="text-[11px] text-muted-foreground/60 uppercase tracking-wider mb-2 font-medium">{t('settings.click_sound')}</p>
-                  <div className="grid grid-cols-1 gap-1">
-                    {CLICK_SOUND_PRESETS.map((preset) => (
-                      <button
-                        key={preset.id}
-                        onClick={() => {
-                          setClickPreset(preset.id);
-                          soundEffects.setClickPreset(preset.id);
-                          soundEffects.playClick(preset.id);
-                        }}
-                        className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all duration-200 ${
-                          clickPreset === preset.id
-                            ? 'bg-primary/10 border border-primary/30 text-foreground'
-                            : 'border border-transparent text-muted-foreground hover:bg-muted/15 hover:text-foreground'
-                        }`}
-                      >
-                        <span className="font-medium">{preset.label}</span>
-                        {clickPreset === preset.id && (
-                          <span className="text-[10px] text-primary font-semibold px-2 py-0.5 bg-primary/10 rounded-md">{t('settings.active')}</span>
-                        )}
-                      </button>
-                    ))}
+                <div className="px-6 py-4 bg-muted/[0.02]">
+                  <p className="text-[11px] text-muted-foreground/70 uppercase tracking-[0.1em] mb-3 font-semibold">{t('settings.click_sound')}</p>
+                  <div role="radiogroup" className="flex flex-col gap-1.5">
+                    {CLICK_SOUND_PRESETS.map((preset) => {
+                      const isSelected = clickPreset === preset.id;
+                      return (
+                        <div
+                          key={preset.id}
+                          role="radio"
+                          aria-checked={isSelected}
+                          tabIndex={0}
+                          onClick={() => {
+                            setClickPreset(preset.id);
+                            soundEffects.setClickPreset(preset.id);
+                            soundEffects.playClick(preset.id);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              setClickPreset(preset.id);
+                              soundEffects.setClickPreset(preset.id);
+                              soundEffects.playClick(preset.id);
+                            }
+                          }}
+                          className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-all duration-150 ${
+                            isSelected
+                              ? 'bg-primary/10 ring-1 ring-primary/40'
+                              : 'hover:bg-muted/15'
+                          }`}
+                        >
+                          <span
+                            className={`flex items-center justify-center w-5 h-5 rounded-full border-2 transition-colors ${
+                              isSelected ? 'border-primary' : 'border-muted-foreground/40 group-hover:border-muted-foreground/70'
+                            }`}
+                          >
+                            {isSelected && <span className="w-2 h-2 rounded-full bg-primary" />}
+                          </span>
+                          <span className={`flex-1 text-[13px] font-medium ${isSelected ? 'text-foreground' : 'text-muted-foreground group-hover:text-foreground'}`}>
+                            {preset.label}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              soundEffects.playClick(preset.id);
+                            }}
+                            aria-label={`Preview ${preset.label}`}
+                            className="p-1.5 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-muted/30 transition-colors"
+                          >
+                            <Play className="w-3.5 h-3.5 fill-current" />
+                          </button>
+                          {isSelected && (
+                            <Check className="w-3.5 h-3.5 text-primary" />
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -322,28 +371,51 @@ const Settings = () => {
             <SectionCard title={t('settings.data')} icon={Download} delay={0.25}>
               <SettingRow icon={Download} label={t('settings.export_data')} description={t('settings.export_desc2')}>
                 <Button
-                  variant="outline"
                   size="sm"
                   onClick={exportUserData}
                   disabled={isExporting}
-                  className="h-8 text-xs rounded-lg border-border/30 hover:border-primary/30 hover:bg-primary/5"
+                  className="h-8 text-xs rounded-lg gap-1.5"
                 >
+                  <Download className="w-3.5 h-3.5" />
                   {isExporting ? t('settings.exporting') : t('settings.export')}
                 </Button>
               </SettingRow>
             </SectionCard>
 
             {/* Danger Zone */}
-            <SectionCard title={t('settings.danger_zone')} icon={Trash2} delay={0.3} variant="danger">
+            <SectionCard title={t('settings.danger_zone')} icon={AlertTriangle} delay={0.3} variant="danger">
               <SettingRow icon={Trash2} iconColor="text-destructive/70" label={t('settings.clear_history')} description={t('settings.clear_desc2')}>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={clearSearchHistory}
-                  className="h-8 text-xs rounded-lg border-destructive/30 text-destructive hover:bg-destructive/10"
-                >
-                  {t('settings.clear')}
-                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs rounded-lg border-destructive/40 text-destructive/90 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/60"
+                    >
+                      {t('settings.clear')}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle className="flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4 text-destructive" />
+                        {t('settings.clear_history')}?
+                      </AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will permanently delete your entire search history. This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={clearSearchHistory}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Yes, clear history
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </SettingRow>
             </SectionCard>
           </div>
