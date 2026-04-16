@@ -28,7 +28,7 @@ const TransferOwnership = ({ onTransferred }: TransferOwnershipProps) => {
     e?.preventDefault();
     const trimmed = email.trim().toLowerCase();
     if (!trimmed || !/^\S+@\S+\.\S+$/.test(trimmed)) {
-      toast.error('Enter a valid email address');
+      toast.error('That email doesn’t look right');
       return;
     }
     setShowConfirm(true);
@@ -61,29 +61,33 @@ const TransferOwnership = ({ onTransferred }: TransferOwnershipProps) => {
     <>
       <form
         onSubmit={handleSubmit}
-        className="self-start rounded-xl border border-destructive/30 bg-card/50 backdrop-blur-sm overflow-hidden"
+        className="self-start rounded-xl border border-destructive/30 bg-card/40 backdrop-blur-sm overflow-hidden"
       >
-        <div className="px-6 py-4 border-b border-destructive/20 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-destructive/10 flex items-center justify-center">
+        <div className="px-5 py-4 border-b border-destructive/20 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-destructive/10 border border-destructive/20 flex items-center justify-center">
             <Crown className="w-4 h-4 text-destructive" />
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-foreground">Transfer Ownership</h3>
-            <p className="text-xs text-muted-foreground">Transfer owner role to another user</p>
+            <h3 className="text-sm font-semibold text-foreground leading-tight">
+              Make someone else owner
+            </h3>
+            <p className="text-xs text-muted-foreground/70 mt-0.5">
+              Hands over full control of the workspace
+            </p>
           </div>
         </div>
 
-        <div className="space-y-4 p-6">
+        <div className="space-y-4 p-5">
           <div className="flex items-start gap-2 rounded-lg bg-destructive/5 border border-destructive/20 p-3">
             <AlertTriangle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
-            <p className="text-xs text-destructive/80">
-              This will remove owner from the current owner and assign it to the specified user. The previous owner will be downgraded to admin.
+            <p className="text-xs text-destructive/80 leading-relaxed">
+              You’ll be downgraded to admin and the new owner will have full control. This isn’t easy to undo.
             </p>
           </div>
 
           <div className="space-y-1.5">
             <label htmlFor="transfer-email" className="text-xs font-medium text-muted-foreground">
-              New Owner Email
+              New owner email
             </label>
             <div className="relative">
               <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/50" />
@@ -91,9 +95,10 @@ const TransferOwnership = ({ onTransferred }: TransferOwnershipProps) => {
                 id="transfer-email"
                 placeholder="newowner@example.com"
                 type="email"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="h-10 rounded-lg border-border/30 bg-background/50 pl-10 text-sm"
+                className="h-10 rounded-lg border-border/40 bg-background/50 pl-10 text-sm"
               />
             </div>
           </div>
@@ -102,10 +107,19 @@ const TransferOwnership = ({ onTransferred }: TransferOwnershipProps) => {
             type="submit"
             variant="destructive"
             disabled={isLoading}
-            className="h-10 rounded-lg px-5 font-medium w-full"
+            className="h-10 rounded-lg px-5 font-medium w-full transition-transform active:scale-[0.98] disabled:active:scale-100"
           >
-            {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Crown className="h-4 w-4 mr-1.5" />}
-            {isLoading ? 'Transferring...' : 'Transfer Ownership'}
+            {isLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+                Transferring…
+              </>
+            ) : (
+              <>
+                <Crown className="h-4 w-4 mr-1.5" />
+                Transfer ownership
+              </>
+            )}
           </Button>
         </div>
       </form>
@@ -113,15 +127,20 @@ const TransferOwnership = ({ onTransferred }: TransferOwnershipProps) => {
       <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Ownership Transfer</AlertDialogTitle>
+            <AlertDialogTitle>Make this user the new owner?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to transfer ownership to <strong>{email.trim().toLowerCase()}</strong>? The current owner will be downgraded to admin. This action cannot be easily undone.
+              You’re about to hand over ownership to{' '}
+              <strong className="text-foreground">{email.trim().toLowerCase()}</strong>. You’ll be
+              downgraded to admin and won’t be able to easily reverse this.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Transfer
+            <AlertDialogCancel>Keep ownership</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Yes, transfer
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
