@@ -192,7 +192,7 @@ export default function ScanHistory({ cheatersFoundCount }: { cheatersFoundCount
     if (loadingCheaters === guildId) return;
     setLoadingCheaters(guildId);
 
-    let allCheaters: DetectedCheater[] = [];
+    let rawCheaters: DetectedCheater[] = [];
     let from = 0;
     const pageSize = 1000;
 
@@ -205,9 +205,20 @@ export default function ScanHistory({ cheatersFoundCount }: { cheatersFoundCount
         .range(from, from + pageSize - 1);
 
       if (!data || data.length === 0) break;
-      allCheaters = allCheaters.concat(data);
+      rawCheaters = rawCheaters.concat(data);
       if (data.length < pageSize) break;
       from += pageSize;
+    }
+
+    // Deduplicate by discord_user_id — keeps the most recent detection per user
+    // (rows are already ordered by detected_at desc).
+    const seen = new Set<string>();
+    const allCheaters: DetectedCheater[] = [];
+    for (const c of rawCheaters) {
+      const key = c.discord_user_id || c.id;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      allCheaters.push(c);
     }
 
     if (allCheaters.length > 0) {
