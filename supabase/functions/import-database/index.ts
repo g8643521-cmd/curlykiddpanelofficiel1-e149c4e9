@@ -289,13 +289,21 @@ const NUMERIC_TYPES = new Set(['smallint', 'integer', 'bigint', 'numeric', 'real
 const INTEGER_TYPES = new Set(['smallint', 'integer', 'bigint']);
 const APP_ROLE_VALUES = new Set(['admin', 'moderator', 'user']);
 
+const USER_ID_COLUMNS = new Set(['user_id', 'shared_by', 'reporter_id', 'flagged_by', 'uploaded_by']);
+
 function normalizeColumnValue(
   tableName: string,
   columnName: string,
   columnType: string,
   value: unknown,
+  currentUserId?: string,
 ): unknown {
   if (value == null) return value;
+
+  // Remap any user_id-like column to the importing user so RLS works
+  if (currentUserId && USER_ID_COLUMNS.has(columnName) && columnType === 'uuid') {
+    return currentUserId;
+  }
 
   if (tableName === 'user_roles' && columnName === 'role') {
     return normalizeAppRole(value);
