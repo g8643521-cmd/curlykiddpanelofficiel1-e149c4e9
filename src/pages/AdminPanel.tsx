@@ -369,7 +369,10 @@ const AdminPanel = () => {
           <motion.div key="roles" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
               <RoleManagementPanel />
-              <AddRoleByEmail onRoleAssigned={fetchStats} />
+              <div className="space-y-6">
+                <AddRoleByEmail onRoleAssigned={fetchStats} />
+                <TransferOwnership onTransferred={fetchStats} />
+              </div>
             </div>
           </motion.div>
         );
