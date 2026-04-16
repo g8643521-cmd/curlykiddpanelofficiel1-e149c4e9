@@ -12,7 +12,7 @@ interface AddRoleByEmailProps {
 
 const AddRoleByEmail = ({ onRoleAssigned }: AddRoleByEmailProps) => {
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState<'admin' | 'moderator' | 'user' | 'mod_creator'>('admin');
+  const [role, setRole] = useState<'admin' | 'moderator' | 'user' | 'mod_creator' | 'integrations_manager'>('admin');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (event?: FormEvent) => {
@@ -89,7 +89,7 @@ const AddRoleByEmail = ({ onRoleAssigned }: AddRoleByEmailProps) => {
         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Role</label>
-            <Select value={role} onValueChange={(v) => setRole(v as 'admin' | 'moderator' | 'user' | 'mod_creator')}>
+            <Select value={role} onValueChange={(v) => setRole(v as typeof role)}>
               <SelectTrigger className="h-10 rounded-lg border-border/30 bg-background/50 text-sm">
                 <SelectValue />
               </SelectTrigger>
@@ -97,6 +97,7 @@ const AddRoleByEmail = ({ onRoleAssigned }: AddRoleByEmailProps) => {
                 <SelectItem value="admin">Admin</SelectItem>
                 <SelectItem value="moderator">Moderator</SelectItem>
                 <SelectItem value="mod_creator">Mod Creator</SelectItem>
+                <SelectItem value="integrations_manager">Integrations Manager</SelectItem>
                 <SelectItem value="user">User</SelectItem>
               </SelectContent>
             </Select>
