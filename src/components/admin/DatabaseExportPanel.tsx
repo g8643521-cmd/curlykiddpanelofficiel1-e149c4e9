@@ -163,7 +163,6 @@ const DatabaseExportPanel = () => {
             <p className="text-xs text-muted-foreground">Export live data, restore from backups, and manage your database with confidence.</p>
           </div>
           <Button
-          <Button
             variant="outline"
             size="sm"
             onClick={() => fetchCounts(tables)}
