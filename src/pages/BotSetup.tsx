@@ -300,23 +300,19 @@ const BotSetup = () => {
   const fetchServers = useCallback(async () => {
     setIsLoading(true);
     const { data: session } = await supabase.auth.getSession();
-    if (!session?.session?.user) { 
-      console.warn('fetchServers: No session found');
-      setIsLoading(false); 
-      return; 
+    if (!session?.session?.user) {
+      setIsLoading(false);
+      return;
     }
 
     const userId = session.session.user.id;
     await claimImportedDataForCurrentUser(userId);
-    console.log('fetchServers: Fetching for user', userId);
 
     const { data, error } = await supabase
       .from('discord_bot_servers')
       .select('id, user_id, guild_id, guild_name, guild_icon, member_count, webhook_url, manual_webhook_url, auto_scan_webhook_url, full_scan_webhook_url, info_channel_id, alert_channel_name, is_active, last_checked_at, created_at')
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
-
-    console.log('fetchServers: owned result', { count: data?.length, error });
 
     if (error) {
       console.error('fetchServers: Error fetching owned servers', error);
@@ -326,15 +322,15 @@ const BotSetup = () => {
 
     const ownedData = data || [];
     const ownedIds = new Set<string>(ownedData.map((s: any) => s.id as string));
-    
+
     // Also fetch shared servers
     const { data: shares } = await supabase
       .from('server_shares')
       .select('server_id')
       .eq('shared_with', userId);
-    
+
     let allServers = [...ownedData];
-    
+
     if (shares && shares.length > 0) {
       const sharedServerIds = shares.map((s: any) => s.server_id).filter((id: string) => !ownedIds.has(id));
       if (sharedServerIds.length > 0) {
@@ -346,13 +342,13 @@ const BotSetup = () => {
         if (sharedServers) allServers = [...allServers, ...sharedServers];
       }
     }
-    
-    console.log('fetchServers: Total servers (owned + shared)', allServers.length);
+
     setOwnedServerIds(ownedIds);
     setServers(allServers);
     fetchLastScanResults(allServers.map((server) => server.id));
+    setIsLoading(false);
 
-    // Refresh guild info in background (non-blocking)
+    // Refresh guild info in background (non-blocking, after initial render)
     supabase.functions.invoke('discord-member-check', {
       body: { action: 'fetch-icons' },
     }).then(async () => {
@@ -365,8 +361,7 @@ const BotSetup = () => {
         const sharedInList = allServers.filter(s => !ownedIds.has(s.id));
         setServers([...refreshed, ...sharedInList]);
       }
-    });
-    setIsLoading(false);
+    }).catch(() => {});
   }, [fetchLastScanResults]);
 
   // Fetch joins for a specific server (lazy-loaded)
@@ -426,9 +421,9 @@ const BotSetup = () => {
               `${j.guild_id}:${j.discord_user_id}:${j.logged_at || ''}` === key
             );
             if (alreadyExists) return prev;
-            // Keep max 500 per guild to prevent memory pressure
+            // Cap at 500 (matches our query limits) to prevent memory pressure
             const updated = [newJoin, ...prev];
-            if (updated.length > 1000) return updated.slice(0, 1000);
+            if (updated.length > 500) return updated.slice(0, 500);
             return updated;
           });
         }
@@ -926,9 +921,12 @@ const BotSetup = () => {
 
   const fetchTotalCheatersFound = async () => {
     try {
+      // Cap at 2000 most recent rows so this query stays fast as scan_history grows
       const { data, error } = await supabase
         .from('scan_history')
-        .select('total_alerts');
+        .select('total_alerts')
+        .order('created_at', { ascending: false })
+        .limit(2000);
       if (!error && data) {
         setTotalCheatersFound(data.reduce((sum: number, s: any) => sum + (s.total_alerts || 0), 0));
       }
@@ -964,6 +962,43 @@ const BotSetup = () => {
   };
 
   const activeServers = useMemo(() => servers.filter(s => s.is_active).length, [servers]);
+
+  // Pre-group joins by guild_id once per recentJoins change.
+  // Avoids O(n) filter passes per server card on every render.
+  const joinsByGuild = useMemo(() => {
+    const map = new Map<string, any[]>();
+    for (const j of recentJoins) {
+      const arr = map.get(j.guild_id) || [];
+      arr.push(j);
+      map.set(j.guild_id, arr);
+    }
+    return map;
+  }, [recentJoins]);
+
+  // Pre-compute flagged counts per guild once.
+  const flaggedCountByGuild = useMemo(() => {
+    const map = new Map<string, number>();
+    joinsByGuild.forEach((arr, guildId) => {
+      let n = 0;
+      for (const j of arr) if (j.is_cheater) n++;
+      map.set(guildId, n);
+    });
+    return map;
+  }, [joinsByGuild]);
+
+  // Pre-sort joins per guild once. Filter by joinsFilter is fast on top of this.
+  const sortedJoinsByGuild = useMemo(() => {
+    const map = new Map<string, any[]>();
+    joinsByGuild.forEach((arr, guildId) => {
+      const sorted = [...arr].sort((a, b) => {
+        const da = a.logged_at ? new Date(a.logged_at).getTime() : 0;
+        const db = b.logged_at ? new Date(b.logged_at).getTime() : 0;
+        return joinsSort === 'newest' ? db - da : da - db;
+      });
+      map.set(guildId, sorted);
+    });
+    return map;
+  }, [joinsByGuild, joinsSort]);
 
   const stagger = {
     hidden: {},
@@ -1709,14 +1744,14 @@ const BotSetup = () => {
                                   </div>
                                   <div className="flex items-center gap-2">
                                     {(() => {
-                                      const serverRecentJoins = recentJoins.filter(j => j.guild_id === server.guild_id);
+                                      const serverRecentJoins = joinsByGuild.get(server.guild_id) || [];
                                       const liveProgress = isScanning === server.id ? scanStore.progress : null;
                                       const lastResult = lastScanResults[server.id];
                                       const flaggedCount = liveProgress
                                         ? liveProgress.alerts
                                         : lastResult
                                           ? lastResult.alerts
-                                          : serverRecentJoins.filter(j => j.is_cheater).length;
+                                          : (flaggedCountByGuild.get(server.guild_id) || 0);
                                       const totalCount = liveProgress
                                         ? liveProgress.checked + liveProgress.skipped
                                         : lastResult
@@ -1744,14 +1779,10 @@ const BotSetup = () => {
                                     <Loader2 className="w-5 h-5 mx-auto text-primary animate-spin" />
                                   </div>
                                 ) : (() => {
-                                  const serverJoins = recentJoins
-                                    .filter(j => j.guild_id === server.guild_id)
-                                    .filter(j => joinsFilter === 'cheaters' ? j.is_cheater : true)
-                                    .sort((a, b) => {
-                                      const da = new Date(a.logged_at || 0).getTime();
-                                      const db = new Date(b.logged_at || 0).getTime();
-                                      return joinsSort === 'newest' ? db - da : da - db;
-                                    });
+                                  const presorted = sortedJoinsByGuild.get(server.guild_id) || [];
+                                  const serverJoins = joinsFilter === 'cheaters'
+                                    ? presorted.filter(j => j.is_cheater)
+                                    : presorted;
 
                                   // Show skeleton loaders when scan is running but no results yet
                                   if (serverJoins.length === 0 && isScanning === server.id) {
