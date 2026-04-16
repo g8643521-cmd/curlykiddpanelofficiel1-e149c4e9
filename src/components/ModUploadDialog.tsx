@@ -369,6 +369,25 @@ const ModUploadDialog = ({ open, onOpenChange, categories, onSuccess }: ModUploa
             successCount++;
             updateFileData(i, { uploadStatus: 'done', uploadProgress: 100 });
 
+            // Log to audit_log so it shows up in Recent Activity / Audit Log
+            try {
+              await supabase.from('audit_log').insert({
+                action: 'mod_uploaded',
+                table_name: 'fivem_mods',
+                record_id: insertData.id,
+                user_id: session.user.id,
+                new_data: {
+                  name: modFile.name.trim(),
+                  category_id: modFile.category_id || null,
+                  version: modFile.version,
+                  file_name: modFile.file.name,
+                  is_featured: modFile.is_featured,
+                },
+              });
+            } catch (auditErr) {
+              console.warn('Audit log insert failed:', auditErr);
+            }
+
             // Prepare webhook data
             const categoryName = categories.find(c => c.id === modFile.category_id)?.name || 'Uncategorized';
             const webhookVars: Record<string, string> = {
