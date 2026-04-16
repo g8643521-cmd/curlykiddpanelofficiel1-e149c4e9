@@ -225,7 +225,7 @@ const Settings = () => {
             </div>
             <div className="relative px-6 pb-5 -mt-14">
               <div className="flex items-end gap-4">
-                <div className="w-20 h-20 rounded-full ring-[3px] ring-primary shadow-xl shadow-primary/20 overflow-hidden bg-card shrink-0">
+                <div className="w-20 h-20 rounded-full shadow-xl shadow-primary/20 overflow-hidden bg-card shrink-0">
                   {userInfo?.avatar_url ? (
                     <img src={userInfo.avatar_url} alt="" className="w-full h-full object-cover" />
                   ) : (
