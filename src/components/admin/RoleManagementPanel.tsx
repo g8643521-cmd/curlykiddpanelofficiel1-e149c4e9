@@ -36,8 +36,8 @@ const ROLE_META: Record<string, { icon: typeof Crown; label: string; badgeClass:
   integrations_manager: { icon: Shield,    label: 'Integrations', badgeClass: 'bg-slate-500/10 text-slate-400 border-slate-500/20',  dotColor: 'bg-slate-400', order: 4 },
 };
 
-const STAFF_ROLES = ['owner', 'admin', 'moderator', 'mod_creator', 'integrations_manager'];
-const ASSIGNABLE_ROLES = ['admin', 'moderator', 'mod_creator', 'integrations_manager', 'user'];
+const STAFF_ROLES = ['owner', 'admin', 'moderator'];
+const ASSIGNABLE_ROLES = ['admin', 'moderator', 'user'];
 
 const RoleManagementPanel = () => {
   const [entries, setEntries] = useState<RoleEntry[]>([]);
