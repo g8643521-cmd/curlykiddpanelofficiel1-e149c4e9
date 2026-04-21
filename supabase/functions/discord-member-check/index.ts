@@ -1606,6 +1606,7 @@ Deno.serve(async (req) => {
             headers: {
               "Content-Type": "application/json",
               "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+              "apikey": SUPABASE_SERVICE_ROLE_KEY,
             },
             body: JSON.stringify({
               _bgScanHistoryId: bgScanHistoryId,
