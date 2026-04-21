@@ -184,6 +184,31 @@ const ServerDetailPanel = ({
   const [invitePermission, setInvitePermission] = useState<'view' | 'manage'>('view');
   const [isInviting, setIsInviting] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
+  const [isResendingWelcome, setIsResendingWelcome] = useState(false);
+
+  const handleResendWelcome = async () => {
+    if (!server) return;
+    setIsResendingWelcome(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('discord-member-check', {
+        body: { action: 'create-webhook', guildId: server.guild_id, private_channels: false },
+      });
+      if (error) {
+        toast.error(`Resend failed: ${error.message}`);
+        console.error('Resend welcome error:', error);
+      } else if (data?.success === false) {
+        toast.error(`Resend failed: ${data.error ?? 'Unknown error'}`);
+        console.error('Resend welcome error:', data);
+      } else {
+        toast.success('Welcome messages resent to Discord');
+      }
+    } catch (e: any) {
+      toast.error(`Resend failed: ${e?.message ?? e}`);
+      console.error(e);
+    } finally {
+      setIsResendingWelcome(false);
+    }
+  };
 
   const [settings, setSettings] = useState<BotServerSettings | null>(null);
   const [settingsLoading, setSettingsLoading] = useState(false);
