@@ -491,7 +491,12 @@ const BotSetup = () => {
       if (!effectiveWebhookUrl && addMode === 'auto') {
         toast.info('Checking existing channels and webhooks...');
         const { data: whData, error: whError } = await supabase.functions.invoke('discord-member-check', {
-          body: { action: 'create-webhook', guildId },
+          body: {
+            action: 'create-webhook',
+            guildId,
+            private_channels: channelsPrivate,
+            allowed_role_ids: channelsPrivate ? selectedRoleIds : [],
+          },
         });
         if (whError || !whData?.success) {
           toast.error('Failed to auto-create channels: ' + (whData?.error || whError?.message || 'Unknown error'));
