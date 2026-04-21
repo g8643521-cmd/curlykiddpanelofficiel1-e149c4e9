@@ -4,7 +4,7 @@ import {
   Clock, Hash, Webhook, BarChart3, Pencil, PowerOff, Radio,
   Calendar, Eye, Settings, UserPlus, Trash2, Crown, Mail,
   ShieldAlert, Ban, UserX, Bell, ScrollText, Timer, AtSign, Zap,
-  ExternalLink, CheckCircle2, XCircle, ChevronRight
+  ExternalLink, CheckCircle2, XCircle, ChevronRight, Send
 } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
