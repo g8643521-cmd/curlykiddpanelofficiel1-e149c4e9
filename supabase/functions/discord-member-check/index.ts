@@ -906,11 +906,15 @@ Deno.serve(async (req) => {
 
       EdgeRuntime.waitUntil((async () => {
         try {
+          if (!SUPABASE_SERVICE_ROLE_KEY) {
+            throw new Error("SUPABASE_SERVICE_ROLE_KEY is not set in edge runtime");
+          }
           const initialBatchResponse = await fetch(functionUrl, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
               "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+              "apikey": SUPABASE_SERVICE_ROLE_KEY,
             },
             body: JSON.stringify(initialScanPayload),
           });
@@ -924,7 +928,7 @@ Deno.serve(async (req) => {
           }
 
           if (!initialBatchResponse.ok || initialBatchData?.success === false) {
-            throw new Error(initialBatchData?.error || `Initial scan batch failed (${initialBatchResponse.status})`);
+            throw new Error(initialBatchData?.error || `Initial scan batch failed (${initialBatchResponse.status}): ${initialBatchText.slice(0, 200)}`);
           }
         } catch (error) {
           console.error("Initial background scan batch failed:", error);
