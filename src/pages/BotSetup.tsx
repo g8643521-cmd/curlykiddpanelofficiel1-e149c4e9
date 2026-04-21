@@ -2133,6 +2133,7 @@ const BotSetup = () => {
                               onClick={() => {
                                 setGuildId(guild.id);
                                 setGuildName(guild.name);
+                                fetchGuildRoles(guild.id);
                               }}
                               className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${
                                 guildId === guild.id
