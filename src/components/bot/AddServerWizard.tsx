@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import AdvancedSettingsStep, { isAdvancedSettingsValid, type AdvancedSettings, type WizardChannel } from './AdvancedSettingsStep';
 import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
@@ -40,10 +41,14 @@ interface AddServerWizardProps {
   // Roles & privacy
   availableRoles: WizardRole[];
   isLoadingRoles: boolean;
+  availableChannels: WizardChannel[];
+  isLoadingChannels: boolean;
   selectedRoleIds: string[];
   setSelectedRoleIds: (ids: string[]) => void;
   channelsPrivate: boolean;
   setChannelsPrivate: (v: boolean) => void;
+  advancedSettings: AdvancedSettings;
+  setAdvancedSettings: (settings: AdvancedSettings) => void;
   // Submit
   isSubmitting: boolean;
   onSubmit: () => void;
@@ -51,8 +56,8 @@ interface AddServerWizardProps {
   inviteUrl: string;
 }
 
-type Step = 0 | 1 | 2 | 3;
-const STEP_KEYS = ['wizard.step.server', 'wizard.step.verify', 'wizard.step.channels', 'wizard.step.confirm'] as const;
+type Step = 0 | 1 | 2 | 3 | 4;
+const STEP_KEYS = ['wizard.step.server', 'wizard.step.verify', 'wizard.step.channels', 'wizard.step.advanced', 'wizard.step.confirm'] as const;
 
 export default function AddServerWizard(props: AddServerWizardProps) {
   const { t, lang } = useI18n();
@@ -90,10 +95,11 @@ export default function AddServerWizard(props: AddServerWizardProps) {
   const canPassStep0 = !!props.selectedGuildId && !props.alreadyConnectedIds.has(props.selectedGuildId);
   const canPassStep1 = props.isAdmin || isVerified;
   const canPassStep2 = !props.channelsPrivate || props.selectedRoleIds.length > 0;
-  const canFinish = canPassStep0 && canPassStep1 && canPassStep2;
+  const canPassStep3 = isAdvancedSettingsValid(props.advancedSettings);
+  const canFinish = canPassStep0 && canPassStep1 && canPassStep2 && canPassStep3;
 
   // Step 1 is auto-skipped when admin
-  const visibleSteps: Step[] = props.isAdmin ? [0, 2, 3] : [0, 1, 2, 3];
+  const visibleSteps: Step[] = props.isAdmin ? [0, 2, 3, 4] : [0, 1, 2, 3, 4];
   const currentVisibleIndex = visibleSteps.indexOf(step);
   const handleNext = () => {
     const next = visibleSteps[currentVisibleIndex + 1];
@@ -108,6 +114,7 @@ export default function AddServerWizard(props: AddServerWizardProps) {
     step === 0 ? canPassStep0 :
     step === 1 ? canPassStep1 :
     step === 2 ? canPassStep2 :
+    step === 3 ? canPassStep3 :
     true;
 
   const fmt = (key: string, vars: Record<string, string | number> = {}) => {
