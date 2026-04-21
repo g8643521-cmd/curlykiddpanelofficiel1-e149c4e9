@@ -284,6 +284,26 @@ const BotSetup = () => {
     }
   }, []);
 
+  const fetchGuildChannels = useCallback(async (targetGuildId: string) => {
+    if (!targetGuildId) return;
+    setIsLoadingChannels(true);
+    setAvailableChannels([]);
+    try {
+      const { data, error } = await supabase.functions.invoke('discord-member-check', {
+        body: { action: 'list-channels', guildId: targetGuildId },
+      });
+      if (!error && data?.success) {
+        setAvailableChannels(data.channels || []);
+      } else {
+        toast.error(data?.error || 'Could not load Discord channels');
+      }
+    } catch {
+      toast.error('Could not load Discord channels');
+    } finally {
+      setIsLoadingChannels(false);
+    }
+  }, []);
+
   const openAddDialog = useCallback(() => {
     setAddDialogOpen(true);
     setAddMode('auto');
@@ -291,9 +311,11 @@ const BotSetup = () => {
     setOwnershipError(null);
     setDiscordUserId('');
     setAvailableRoles([]);
+    setAvailableChannels([]);
     setSelectedRoleIds([]);
     setChannelsPrivate(true);
     setRoleSearch('');
+    setAdvancedSettings(defaultAdvancedSettings);
     fetchGuilds();
   }, [fetchGuilds]);
 
