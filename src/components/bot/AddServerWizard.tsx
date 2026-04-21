@@ -597,8 +597,20 @@ export default function AddServerWizard(props: AddServerWizardProps) {
                 </div>
               )}
 
-              {/* ═══ STEP 4 — Confirm ═══ */}
+              {/* ═══ STEP 4 — Advanced ═══ */}
               {step === 3 && (
+                <AdvancedSettingsStep
+                  value={props.advancedSettings}
+                  onChange={props.setAdvancedSettings}
+                  roles={props.availableRoles}
+                  isLoadingRoles={props.isLoadingRoles}
+                  channels={props.availableChannels}
+                  isLoadingChannels={props.isLoadingChannels}
+                />
+              )}
+
+              {/* ═══ STEP 5 — Confirm ═══ */}
+              {step === 4 && (
                 <div className="space-y-5">
                   <div>
                     <h3 className="text-lg font-semibold tracking-tight text-foreground">{t('wizard.s4.title')}</h3>
@@ -716,7 +728,7 @@ export default function AddServerWizard(props: AddServerWizardProps) {
             )}
           </Button>
 
-          {step === 3 ? (
+          {step === 4 ? (
             <Button
               onClick={props.onSubmit}
               disabled={props.isSubmitting || !canFinish}
