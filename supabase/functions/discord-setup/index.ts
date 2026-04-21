@@ -504,7 +504,8 @@ Deno.serve(async (req) => {
     const auth = await requireAdmin(req);
     if (!auth.ok) return auth.response;
 
-    const { action, guild_id } = await req.json();
+    const body = await req.json();
+    const { action, guild_id, category_permissions } = body;
 
     if (action === "get_bot_info") {
       const token = getToken();
@@ -523,10 +524,21 @@ Deno.serve(async (req) => {
       return json({ success: true, structure });
     }
 
+    if (action === "get_guild_roles") {
+      if (!guild_id) return json({ success: false, error: "guild_id required" }, 400);
+      const token = getToken();
+      const roles = await fetchGuildRoles(token, guild_id);
+      // Filter out @everyone (id == guild_id) and managed bot roles
+      const usable = roles
+        .filter((r) => r.id !== guild_id && !r.managed)
+        .sort((a, b) => b.position - a.position);
+      return json({ success: true, roles: usable });
+    }
+
     if (action === "setup_server") {
       if (!guild_id) return json({ success: false, error: "guild_id required" }, 400);
       const token = getToken();
-      const result = await setupServer(token, guild_id);
+      const result = await setupServer(token, guild_id, category_permissions || {});
       return json({ success: true, ...result });
     }
 
