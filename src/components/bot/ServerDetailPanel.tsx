@@ -193,6 +193,38 @@ const ServerDetailPanel = ({
     details: any;
   }>({ open: false, title: '', summary: '', details: null });
 
+  // Welcome stepper state — shown inline in the Overview tab during/after a resend.
+  type StepStatus = 'pending' | 'in_progress' | 'success' | 'fail';
+  type WelcomeStep = {
+    key: string;
+    label: string;
+    status: StepStatus;
+    httpStatus?: number;
+    attempts?: number;
+    rateLimited?: boolean;
+    error?: any;
+  };
+  const WELCOME_STEP_DEFS: Array<{ key: string; label: string }> = [
+    { key: 'auto-scan-alerts', label: '#auto-scan-alerts' },
+    { key: 'full-scan-alerts', label: '#full-scan-alerts' },
+    { key: 'info', label: '#info channel' },
+  ];
+  const [welcomeSteps, setWelcomeSteps] = useState<WelcomeStep[] | null>(null);
+
+  // Server audit log — for the new Audit tab.
+  type AuditRow = {
+    id: string;
+    action: string;
+    status: 'success' | 'fail' | 'partial' | string;
+    created_at: string;
+    user_id: string | null;
+    details: any;
+    error_message: string | null;
+    actor?: { display_name: string | null; email: string | null; avatar_url: string | null } | null;
+  };
+  const [auditRows, setAuditRows] = useState<AuditRow[]>([]);
+  const [auditLoading, setAuditLoading] = useState(false);
+
   const writeAudit = async (
     status: 'success' | 'fail' | 'partial',
     details: any,
