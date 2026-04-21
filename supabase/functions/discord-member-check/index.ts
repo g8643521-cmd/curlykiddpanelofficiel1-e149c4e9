@@ -357,34 +357,41 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // ── Auth gate: require admin or owner ──
+    // ── Auth gate: require admin or owner for user-triggered calls,
+    // but allow internal background batch chaining via service role auth ──
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
     const SUPABASE_URL_AUTH = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_ANON_KEY_AUTH = Deno.env.get("SUPABASE_ANON_KEY")!;
     const SUPABASE_SERVICE_ROLE_KEY_AUTH = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const userClient = createClient(SUPABASE_URL_AUTH, SUPABASE_ANON_KEY_AUTH, {
-      global: { headers: { Authorization: authHeader } },
-      auth: { persistSession: false },
-    });
-    const { data: userData, error: userErr } = await userClient.auth.getUser();
-    if (userErr || !userData?.user) {
-      return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    const isInternalServiceCall = !!authHeader && authHeader === `Bearer ${SUPABASE_SERVICE_ROLE_KEY_AUTH}`;
+
+    if (!isInternalServiceCall) {
+      if (!authHeader?.startsWith("Bearer ")) {
+        return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const userClient = createClient(SUPABASE_URL_AUTH, SUPABASE_ANON_KEY_AUTH, {
+        global: { headers: { Authorization: authHeader } },
+        auth: { persistSession: false },
       });
-    }
-    const adminCheckClient = createClient(SUPABASE_URL_AUTH, SUPABASE_SERVICE_ROLE_KEY_AUTH, { auth: { persistSession: false } });
-    const { data: roleRow } = await adminCheckClient
-      .from("user_roles").select("role").eq("user_id", userData.user.id)
-      .in("role", ["admin", "owner"]).maybeSingle();
-    if (!roleRow) {
-      return new Response(JSON.stringify({ success: false, error: "Forbidden" }), {
-        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      const { data: userData, error: userErr } = await userClient.auth.getUser();
+      if (userErr || !userData?.user) {
+        return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const adminCheckClient = createClient(SUPABASE_URL_AUTH, SUPABASE_SERVICE_ROLE_KEY_AUTH, { auth: { persistSession: false } });
+      const { data: roleRow } = await adminCheckClient
+        .from("user_roles").select("role").eq("user_id", userData.user.id)
+        .in("role", ["admin", "owner"]).maybeSingle();
+      if (!roleRow) {
+        return new Response(JSON.stringify({ success: false, error: "Forbidden" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
