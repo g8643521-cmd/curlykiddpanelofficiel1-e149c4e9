@@ -572,6 +572,10 @@ const ServerDetailPanel = ({
                   {isTesting === srv.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Webhook className="w-3.5 h-3.5" />}
                   {isTesting === srv.id ? 'Testing…' : t('bot.test_webhook')}
                 </Button>
+                <Button variant="outline" size="sm" className="gap-1.5 h-10 text-xs border-border/20 hover:border-border/40 px-3" onClick={handleResendWelcome} disabled={isResendingWelcome}>
+                  {isResendingWelcome ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                  {isResendingWelcome ? 'Sending…' : 'Resend welcome'}
+                </Button>
               </div>
             </TabsContent>
 
