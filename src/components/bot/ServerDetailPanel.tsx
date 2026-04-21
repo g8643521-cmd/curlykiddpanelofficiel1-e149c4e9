@@ -6,7 +6,7 @@ import {
   ShieldAlert, Ban, UserX, Bell, ScrollText, Timer, AtSign, Zap,
   ExternalLink, CheckCircle2, XCircle, ChevronRight, Send
 } from 'lucide-react';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
