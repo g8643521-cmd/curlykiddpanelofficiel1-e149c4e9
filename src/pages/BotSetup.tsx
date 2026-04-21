@@ -174,6 +174,13 @@ const BotSetup = () => {
   const [isLoadingGuilds, setIsLoadingGuilds] = useState(false);
   const [addMode, setAddMode] = useState<'auto' | 'manual'>('auto');
 
+  // Channel privacy / role permissions
+  const [availableRoles, setAvailableRoles] = useState<{ id: string; name: string; color: number }[]>([]);
+  const [isLoadingRoles, setIsLoadingRoles] = useState(false);
+  const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>([]);
+  const [channelsPrivate, setChannelsPrivate] = useState(true);
+  const [roleSearch, setRoleSearch] = useState('');
+
   // Ownership verification
   const [discordUserId, setDiscordUserId] = useState('');
   const [isVerifyingOwnership, setIsVerifyingOwnership] = useState(false);
@@ -251,12 +258,37 @@ const BotSetup = () => {
     setIsVerifyingOwnership(false);
   }, []);
 
+  const fetchGuildRoles = useCallback(async (targetGuildId: string) => {
+    if (!targetGuildId) return;
+    setIsLoadingRoles(true);
+    setAvailableRoles([]);
+    setSelectedRoleIds([]);
+    try {
+      const { data, error } = await supabase.functions.invoke('discord-setup', {
+        body: { action: 'get_guild_roles', guild_id: targetGuildId },
+      });
+      if (!error && data?.success) {
+        setAvailableRoles(data.roles || []);
+      } else {
+        toast.error(data?.error || 'Could not load Discord roles');
+      }
+    } catch (e: any) {
+      toast.error('Could not load Discord roles');
+    } finally {
+      setIsLoadingRoles(false);
+    }
+  }, []);
+
   const openAddDialog = useCallback(() => {
     setAddDialogOpen(true);
     setAddMode('auto');
     setOwnershipVerified(null);
     setOwnershipError(null);
     setDiscordUserId('');
+    setAvailableRoles([]);
+    setSelectedRoleIds([]);
+    setChannelsPrivate(true);
+    setRoleSearch('');
     fetchGuilds();
   }, [fetchGuilds]);
 
@@ -459,7 +491,12 @@ const BotSetup = () => {
       if (!effectiveWebhookUrl && addMode === 'auto') {
         toast.info('Checking existing channels and webhooks...');
         const { data: whData, error: whError } = await supabase.functions.invoke('discord-member-check', {
-          body: { action: 'create-webhook', guildId },
+          body: {
+            action: 'create-webhook',
+            guildId,
+            private_channels: channelsPrivate,
+            allowed_role_ids: channelsPrivate ? selectedRoleIds : [],
+          },
         });
         if (whError || !whData?.success) {
           toast.error('Failed to auto-create channels: ' + (whData?.error || whError?.message || 'Unknown error'));
@@ -2096,6 +2133,7 @@ const BotSetup = () => {
                               onClick={() => {
                                 setGuildId(guild.id);
                                 setGuildName(guild.name);
+                                fetchGuildRoles(guild.id);
                               }}
                               className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${
                                 guildId === guild.id
@@ -2205,6 +2243,110 @@ const BotSetup = () => {
                       <Zap className="w-3.5 h-3.5" />
                       Webhook oprettes automatisk i #cheater-alerts (eller første kanal)
                     </div>
+
+                    {/* ── Channel Privacy & Roles ── */}
+                    {guildId && !servers.some((s) => s.guild_id === guildId) && (
+                      <div className="rounded-xl border border-border/40 bg-card/30 overflow-hidden">
+                        <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border/30 bg-secondary/20">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Shield className="w-4 h-4 text-primary shrink-0" />
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-foreground">Hvem skal kunne se kanalerne?</p>
+                              <p className="text-[10px] text-muted-foreground">
+                                Botten opretter <span className="font-mono">#auto-scan-alerts</span>, <span className="font-mono">#full-scan-alerts</span> og <span className="font-mono">#curlykidd-info</span>
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setChannelsPrivate(!channelsPrivate)}
+                            className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider transition-all ${
+                              channelsPrivate
+                                ? 'bg-amber-500/15 text-amber-500 ring-1 ring-amber-500/30'
+                                : 'bg-emerald-500/15 text-emerald-500 ring-1 ring-emerald-500/30'
+                            }`}
+                          >
+                            {channelsPrivate ? '🔒 Privat' : '🌐 Offentlig'}
+                          </button>
+                        </div>
+
+                        {channelsPrivate ? (
+                          <div className="p-3 space-y-2">
+                            <div className="flex items-center gap-2">
+                              <Input
+                                value={roleSearch}
+                                onChange={(e) => setRoleSearch(e.target.value)}
+                                placeholder="Søg roller..."
+                                className="h-8 text-xs"
+                              />
+                              <Badge variant="secondary" className="text-[10px] shrink-0">
+                                {selectedRoleIds.length} valgt
+                              </Badge>
+                            </div>
+
+                            {isLoadingRoles ? (
+                              <div className="flex items-center justify-center py-6">
+                                <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                              </div>
+                            ) : availableRoles.length === 0 ? (
+                              <p className="text-[11px] text-muted-foreground text-center py-4">
+                                Ingen roller fundet — sørg for at botten er inviteret med korrekte rettigheder
+                              </p>
+                            ) : (
+                              <div className="max-h-44 overflow-y-auto rounded-lg border border-border/30 bg-secondary/10 divide-y divide-border/20">
+                                {availableRoles
+                                  .filter((r) => !roleSearch.trim() || r.name.toLowerCase().includes(roleSearch.toLowerCase()))
+                                  .map((role) => {
+                                    const checked = selectedRoleIds.includes(role.id);
+                                    const colorHex = role.color === 0 ? null : `#${role.color.toString(16).padStart(6, '0')}`;
+                                    return (
+                                      <label
+                                        key={role.id}
+                                        className={`flex items-center gap-2.5 px-3 py-1.5 cursor-pointer transition-colors text-xs ${
+                                          checked ? 'bg-primary/10' : 'hover:bg-secondary/30'
+                                        }`}
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          checked={checked}
+                                          onChange={() => {
+                                            setSelectedRoleIds((prev) =>
+                                              prev.includes(role.id)
+                                                ? prev.filter((id) => id !== role.id)
+                                                : [...prev, role.id]
+                                            );
+                                          }}
+                                          className="w-3.5 h-3.5 accent-primary"
+                                        />
+                                        <span
+                                          className="w-2 h-2 rounded-full shrink-0"
+                                          style={{ backgroundColor: colorHex || 'hsl(var(--muted-foreground))' }}
+                                        />
+                                        <span className="font-medium text-foreground truncate flex-1">@{role.name}</span>
+                                      </label>
+                                    );
+                                  })}
+                              </div>
+                            )}
+
+                            {selectedRoleIds.length === 0 && !isLoadingRoles && availableRoles.length > 0 && (
+                              <p className="text-[10px] text-amber-500 flex items-center gap-1">
+                                <AlertTriangle className="w-3 h-3" />
+                                Vælg mindst én rolle, ellers kan kun server-admins se kanalerne
+                              </p>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="p-4 text-center">
+                            <Users className="w-5 h-5 text-emerald-500 mx-auto mb-1.5" />
+                            <p className="text-xs font-medium text-foreground">Synlig for alle</p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                              Alle medlemmer kan se de oprettede kanaler
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     <details className="group">
                       <summary className="text-[11px] text-muted-foreground cursor-pointer hover:text-foreground transition-colors flex items-center gap-1.5">
@@ -2378,7 +2520,8 @@ const BotSetup = () => {
                   isSubmitting ||
                   !guildId ||
                   (!isAdmin && ownershipVerified?.guildId !== guildId) ||
-                  (addMode === 'auto' && servers.some((server) => server.guild_id === guildId))
+                  (addMode === 'auto' && servers.some((server) => server.guild_id === guildId)) ||
+                  (addMode === 'auto' && channelsPrivate && selectedRoleIds.length === 0)
                 }
                 className="gap-2"
               >
@@ -2387,7 +2530,9 @@ const BotSetup = () => {
                   ? t('bot.verify_first')
                   : addMode === 'auto' && servers.some((server) => server.guild_id === guildId)
                     ? t('bot.already_added_btn')
-                    : t('bot.add_server')}
+                    : addMode === 'auto' && channelsPrivate && selectedRoleIds.length === 0
+                      ? 'Vælg mindst én rolle'
+                      : t('bot.add_server')}
               </Button>
             </DialogFooter>
           </DialogContent>
