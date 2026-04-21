@@ -293,13 +293,14 @@ const ServerDetailPanel = ({
       // Network / function-level error
       if (error) {
         const errMsg = error.message || 'Edge function error';
-        setWelcomeSteps((prev) =>
-          (prev ?? WELCOME_STEP_DEFS.map((s) => ({ ...s, status: 'pending' as StepStatus }))).map((s) => ({
+        setWelcomeSteps((prev) => {
+          const base: WelcomeStep[] = prev ?? WELCOME_STEP_DEFS.map((s) => ({ ...s, status: 'pending' as StepStatus }));
+          return base.map((s) => ({
             ...s,
-            status: s.status === 'success' ? 'success' : 'fail',
+            status: s.status === 'success' ? ('success' as StepStatus) : ('fail' as StepStatus),
             error: s.error ?? errMsg,
-          })),
-        );
+          }));
+        });
         setErrorDialog({
           open: true,
           title: 'Resend failed (function error)',
@@ -336,13 +337,14 @@ const ServerDetailPanel = ({
       toast.success('Welcome messages resent to Discord');
     } catch (e: any) {
       const errMsg = e?.message ?? String(e);
-      setWelcomeSteps((prev) =>
-        (prev ?? WELCOME_STEP_DEFS.map((s) => ({ ...s, status: 'pending' as StepStatus }))).map((s) => ({
+      setWelcomeSteps((prev) => {
+        const base: WelcomeStep[] = prev ?? WELCOME_STEP_DEFS.map((s) => ({ ...s, status: 'pending' as StepStatus }));
+        return base.map((s) => ({
           ...s,
-          status: s.status === 'success' ? 'success' : 'fail',
+          status: s.status === 'success' ? ('success' as StepStatus) : ('fail' as StepStatus),
           error: s.error ?? errMsg,
-        })),
-      );
+        }));
+      });
       setErrorDialog({
         open: true,
         title: 'Resend failed (unexpected)',
