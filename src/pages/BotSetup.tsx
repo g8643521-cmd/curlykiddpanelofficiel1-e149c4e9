@@ -67,6 +67,7 @@ const BotExportDialog = lazy(() => import('@/components/BotExportDialog'));
 const ScanHistory = lazy(() => import('@/components/ScanHistory'));
 const ShareServerDialog = lazy(() => import('@/components/bot/ShareServerDialog'));
 const ServerDetailPanel = lazy(() => import('@/components/bot/ServerDetailPanel'));
+const AddServerWizard = lazy(() => import('@/components/bot/AddServerWizard'));
 
 const BOT_INVITE_URL = 'https://discord.com/oauth2/authorize?client_id=1491049580005949622&permissions=536871985&integration_type=0&scope=bot';
 
