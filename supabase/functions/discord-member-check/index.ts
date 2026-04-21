@@ -723,7 +723,7 @@ Deno.serve(async (req) => {
             }),
           },
         );
-        } // end if (!allExisted)
+        } // end always-post block
 
         return new Response(
           JSON.stringify({
