@@ -646,6 +646,7 @@ const ServerDetailPanel = ({
               {[
                 { value: 'overview', icon: BarChart3, label: t('admin.overview') },
                 { value: 'access', icon: Users, label: t('share.shared_with'), count: shares.length || undefined },
+                { value: 'audit', icon: History, label: 'Audit' },
                 { value: 'settings', icon: Settings, label: t('nav.settings_label') },
               ].map(tab => (
                 <TabsTrigger
