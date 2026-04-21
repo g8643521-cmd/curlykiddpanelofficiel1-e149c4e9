@@ -2520,7 +2520,8 @@ const BotSetup = () => {
                   isSubmitting ||
                   !guildId ||
                   (!isAdmin && ownershipVerified?.guildId !== guildId) ||
-                  (addMode === 'auto' && servers.some((server) => server.guild_id === guildId))
+                  (addMode === 'auto' && servers.some((server) => server.guild_id === guildId)) ||
+                  (addMode === 'auto' && channelsPrivate && selectedRoleIds.length === 0)
                 }
                 className="gap-2"
               >
@@ -2529,7 +2530,9 @@ const BotSetup = () => {
                   ? t('bot.verify_first')
                   : addMode === 'auto' && servers.some((server) => server.guild_id === guildId)
                     ? t('bot.already_added_btn')
-                    : t('bot.add_server')}
+                    : addMode === 'auto' && channelsPrivate && selectedRoleIds.length === 0
+                      ? 'Vælg mindst én rolle'
+                      : t('bot.add_server')}
               </Button>
             </DialogFooter>
           </DialogContent>
