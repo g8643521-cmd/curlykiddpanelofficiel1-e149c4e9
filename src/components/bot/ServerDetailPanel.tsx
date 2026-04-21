@@ -185,6 +185,34 @@ const ServerDetailPanel = ({
   const [isInviting, setIsInviting] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [isResendingWelcome, setIsResendingWelcome] = useState(false);
+  const [errorDialog, setErrorDialog] = useState<{
+    open: boolean;
+    title: string;
+    summary: string;
+    details: any;
+  }>({ open: false, title: '', summary: '', details: null });
+
+  const writeAudit = async (
+    status: 'success' | 'fail' | 'partial',
+    details: any,
+    errorMessage?: string,
+  ) => {
+    if (!server) return;
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      await supabase.from('server_audit_log').insert({
+        server_id: server.id,
+        guild_id: server.guild_id,
+        user_id: sess?.session?.user?.id ?? null,
+        action: 'resend_welcome',
+        status,
+        details,
+        error_message: errorMessage ?? null,
+      });
+    } catch (e) {
+      console.error('Failed to write audit log:', e);
+    }
+  };
 
   const handleResendWelcome = async () => {
     if (!server) return;
@@ -193,18 +221,53 @@ const ServerDetailPanel = ({
       const { data, error } = await supabase.functions.invoke('discord-member-check', {
         body: { action: 'create-webhook', guildId: server.guild_id, private_channels: false },
       });
+
+      // Network / function-level error
       if (error) {
-        toast.error(`Resend failed: ${error.message}`);
-        console.error('Resend welcome error:', error);
-      } else if (data?.success === false) {
-        toast.error(`Resend failed: ${data.error ?? 'Unknown error'}`);
-        console.error('Resend welcome error:', data);
-      } else {
-        toast.success('Welcome messages resent to Discord');
+        const errMsg = error.message || 'Edge function error';
+        setErrorDialog({
+          open: true,
+          title: 'Resend failed (function error)',
+          summary: errMsg,
+          details: { error, returned: data ?? null },
+        });
+        await writeAudit('fail', { error: errMsg, returned: data ?? null }, errMsg);
+        toast.error('Resend failed — see details');
+        return;
       }
+
+      const welcomeResults: any[] = data?.welcome_results ?? [];
+      const failed = welcomeResults.filter((r) => !r.ok);
+
+      if (data?.success === false || failed.length > 0) {
+        const status: 'fail' | 'partial' = failed.length === welcomeResults.length || welcomeResults.length === 0
+          ? 'fail'
+          : 'partial';
+        const errMsg = data?.error
+          ?? `Failed to post in ${failed.length}/${welcomeResults.length || 3} channel(s)`;
+        setErrorDialog({
+          open: true,
+          title: status === 'partial' ? 'Resend partially failed' : 'Resend failed (Discord API)',
+          summary: errMsg,
+          details: data,
+        });
+        await writeAudit(status, data, errMsg);
+        toast.error(status === 'partial' ? 'Some channels failed' : 'Resend failed — see details');
+        return;
+      }
+
+      await writeAudit('success', data);
+      toast.success('Welcome messages resent to Discord');
     } catch (e: any) {
-      toast.error(`Resend failed: ${e?.message ?? e}`);
-      console.error(e);
+      const errMsg = e?.message ?? String(e);
+      setErrorDialog({
+        open: true,
+        title: 'Resend failed (unexpected)',
+        summary: errMsg,
+        details: { exception: errMsg, stack: e?.stack ?? null },
+      });
+      await writeAudit('fail', { exception: errMsg }, errMsg);
+      toast.error('Resend failed — see details');
     } finally {
       setIsResendingWelcome(false);
     }
