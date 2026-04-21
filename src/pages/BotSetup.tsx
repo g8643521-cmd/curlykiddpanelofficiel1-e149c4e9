@@ -2043,57 +2043,66 @@ const BotSetup = () => {
             setAddDialogOpen(false);
           }
         }}>
-          <DialogContent className="sm:max-w-lg">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Bot className="w-5 h-5 text-primary" />
-                {t('bot.add_discord_server')}
-              </DialogTitle>
-              <DialogDescription>
-                {t('bot.add_dialog_desc')}
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="mb-2">
-              <a
-                href={BOT_INVITE_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-xs text-primary hover:text-primary/80 transition-colors mb-3"
-              >
-                <Bot className="w-3.5 h-3.5" />
-                {t('bot.invite_link')}
-                <ExternalLink className="w-3 h-3" />
-              </a>
+          <DialogContent className="sm:max-w-xl p-0 overflow-hidden border-border/40 bg-card/95 backdrop-blur-xl gap-0">
+            {/* Premium gradient header */}
+            <div className="relative overflow-hidden border-b border-border/40">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent" />
+              <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full bg-primary/10 blur-3xl" />
+              <div className="relative px-6 py-5">
+                <DialogHeader className="space-y-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/30 to-primary/10 ring-1 ring-primary/30 flex items-center justify-center shadow-lg shadow-primary/10">
+                      <Bot className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="min-w-0">
+                      <DialogTitle className="text-base font-semibold tracking-tight">
+                        {t('bot.add_discord_server')}
+                      </DialogTitle>
+                      <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                        {t('bot.add_dialog_desc')}
+                      </DialogDescription>
+                    </div>
+                  </div>
+                  <a
+                    href={BOT_INVITE_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-[11px] font-medium text-primary/90 hover:text-primary transition-colors w-fit"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    {t('bot.invite_link')}
+                  </a>
+                </DialogHeader>
+              </div>
             </div>
 
-            <div className="flex gap-2 mb-2">
-              <button
-                onClick={() => {
-                  setAddMode('auto');
-                  fetchGuilds();
-                }}
-                className={`flex-1 text-xs font-medium py-2 px-3 rounded-lg transition-all ${
-                  addMode === 'auto'
-                    ? 'bg-primary/15 text-primary ring-1 ring-primary/30'
-                    : 'bg-secondary/30 text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <Zap className="w-3.5 h-3.5 inline mr-1.5" />
-                {t('bot.auto_detect')}
-              </button>
-              <button
-                onClick={() => setAddMode('manual')}
-                className={`flex-1 text-xs font-medium py-2 px-3 rounded-lg transition-all ${
-                  addMode === 'manual'
-                    ? 'bg-primary/15 text-primary ring-1 ring-primary/30'
-                    : 'bg-secondary/30 text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <Settings className="w-3.5 h-3.5 inline mr-1.5" />
-                {t('bot.manual')}
-              </button>
-            </div>
+            {/* Scrollable body */}
+            <div className="px-6 py-5 max-h-[65vh] overflow-y-auto">
+              {/* Refined segmented control */}
+              <div className="relative grid grid-cols-2 p-1 rounded-xl bg-secondary/40 ring-1 ring-border/40 mb-5">
+                <div
+                  className="absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-lg bg-gradient-to-b from-primary/25 to-primary/15 ring-1 ring-primary/30 shadow-sm transition-transform duration-300 ease-out"
+                  style={{ transform: addMode === 'auto' ? 'translateX(0)' : 'translateX(calc(100% + 4px))' }}
+                />
+                <button
+                  onClick={() => { setAddMode('auto'); fetchGuilds(); }}
+                  className={`relative z-10 inline-flex items-center justify-center gap-1.5 text-xs font-semibold py-2 px-3 rounded-lg transition-colors ${
+                    addMode === 'auto' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <Zap className="w-3.5 h-3.5" />
+                  {t('bot.auto_detect')}
+                </button>
+                <button
+                  onClick={() => setAddMode('manual')}
+                  className={`relative z-10 inline-flex items-center justify-center gap-1.5 text-xs font-semibold py-2 px-3 rounded-lg transition-colors ${
+                    addMode === 'manual' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <Settings className="w-3.5 h-3.5" />
+                  {t('bot.manual')}
+                </button>
+              </div>
 
             {addMode === 'auto' ? (
               <div className="space-y-4 py-2">
@@ -2118,14 +2127,19 @@ const BotSetup = () => {
                   </div>
                 ) : (
                   <>
-                    <div className="space-y-2">
+                    <div className="space-y-2.5">
                       <div className="flex items-center justify-between">
-                        <Label>{t('bot.discord_servers')}</Label>
-                        <span className="text-[11px] text-muted-foreground">{availableGuilds.length} {t('bot.found')}</span>
+                        <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          {t('bot.discord_servers')}
+                        </Label>
+                        <span className="text-[10px] font-mono text-muted-foreground/70">
+                          {availableGuilds.length} {t('bot.found')}
+                        </span>
                       </div>
-                      <div className="space-y-2 max-h-64 overflow-y-auto rounded-lg border border-border/30 bg-secondary/10 p-2">
+                      <div className="space-y-1.5 max-h-72 overflow-y-auto rounded-xl border border-border/40 bg-secondary/10 p-1.5">
                         {availableGuilds.map((guild) => {
                           const isAlreadyAdded = servers.some((server) => server.guild_id === guild.id);
+                          const isSelected = guildId === guild.id;
 
                           return (
                             <button
@@ -2135,44 +2149,52 @@ const BotSetup = () => {
                                 setGuildName(guild.name);
                                 fetchGuildRoles(guild.id);
                               }}
-                              className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${
-                                guildId === guild.id
-                                  ? 'border-primary/40 bg-primary/10'
+                              className={`group w-full flex items-center gap-3 p-2.5 rounded-lg transition-all text-left ring-1 ${
+                                isSelected
+                                  ? 'ring-primary/50 bg-gradient-to-r from-primary/15 to-primary/5 shadow-md shadow-primary/10'
                                   : isAlreadyAdded
-                                    ? 'border-border/30 bg-muted/20 hover:bg-muted/30'
-                                    : 'border-border/30 bg-secondary/20 hover:bg-secondary/40'
+                                    ? 'ring-border/20 bg-muted/10 opacity-70 hover:opacity-100'
+                                    : 'ring-transparent hover:ring-border/40 hover:bg-secondary/30'
                               }`}
                             >
                               {guild.icon ? (
                                 <img
-                                  src={`https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.webp?size=48`}
+                                  src={`https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.webp?size=64`}
                                   alt={guild.name}
-                                  className="w-9 h-9 rounded-lg"
+                                  className={`w-10 h-10 rounded-xl ring-1 transition-all ${
+                                    isSelected ? 'ring-primary/40' : 'ring-border/30 group-hover:ring-border/60'
+                                  }`}
                                 />
                               ) : (
-                                <div className="w-9 h-9 rounded-lg bg-muted/50 flex items-center justify-center text-muted-foreground text-sm font-bold">
-                                  {guild.name[0]}
+                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold transition-all ${
+                                  isSelected
+                                    ? 'bg-gradient-to-br from-primary/30 to-primary/10 text-primary ring-1 ring-primary/30'
+                                    : 'bg-muted/40 text-muted-foreground ring-1 ring-border/30'
+                                }`}>
+                                  {guild.name[0]?.toUpperCase()}
                                 </div>
                               )}
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2">
-                                  <p className="text-sm font-medium text-foreground truncate">{guild.name}</p>
+                                  <p className="text-sm font-semibold text-foreground truncate">{guild.name}</p>
                                   {isAlreadyAdded && (
-                                    <Badge variant="outline" className="text-[10px] border-border/40 bg-card/60 text-muted-foreground">
+                                    <Badge variant="outline" className="text-[9px] h-4 px-1.5 border-border/40 bg-card/60 text-muted-foreground font-normal">
                                       {t('bot.already_added')}
                                     </Badge>
                                   )}
                                 </div>
-                                <p className="text-[10px] text-muted-foreground font-mono">{guild.id}</p>
+                                <p className="text-[10px] text-muted-foreground/60 font-mono truncate">{guild.id}</p>
                               </div>
-                              {guildId === guild.id ? (
-                                <CheckCircle className="w-4 h-4 text-primary shrink-0" />
-                              ) : null}
+                              <div className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center transition-all ${
+                                isSelected ? 'bg-primary text-primary-foreground scale-100' : 'scale-0'
+                              }`}>
+                                <CheckCircle className="w-3.5 h-3.5" />
+                              </div>
                             </button>
                           );
                         })}
                       </div>
-                      <p className="text-[11px] text-muted-foreground">
+                      <p className="text-[10px] text-muted-foreground/60 px-1">
                         {t('bot.all_servers_shown')}
                       </p>
                     </div>
@@ -2239,61 +2261,86 @@ const BotSetup = () => {
                       </div>
                     )}
 
-                    <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-[11px] text-primary flex items-center gap-2">
-                      <Zap className="w-3.5 h-3.5" />
-                      Webhook oprettes automatisk i #cheater-alerts (eller første kanal)
+                    <div className="rounded-xl border border-primary/25 bg-gradient-to-r from-primary/10 to-primary/5 px-3.5 py-2.5 text-[11px] text-primary flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-lg bg-primary/15 ring-1 ring-primary/25 flex items-center justify-center shrink-0">
+                        <Webhook className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="font-medium">Webhook oprettes automatisk i <span className="font-mono">#cheater-alerts</span> (eller første kanal)</span>
                     </div>
 
                     {/* ── Channel Privacy & Roles ── */}
                     {guildId && !servers.some((s) => s.guild_id === guildId) && (
-                      <div className="rounded-xl border border-border/40 bg-card/30 overflow-hidden">
-                        <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border/30 bg-secondary/20">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <Shield className="w-4 h-4 text-primary shrink-0" />
+                      <div className="rounded-xl border border-border/40 bg-card/40 overflow-hidden shadow-sm">
+                        <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border/30 bg-gradient-to-r from-secondary/30 to-secondary/10">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-8 h-8 rounded-lg bg-primary/10 ring-1 ring-primary/25 flex items-center justify-center shrink-0">
+                              <Shield className="w-4 h-4 text-primary" />
+                            </div>
                             <div className="min-w-0">
-                              <p className="text-sm font-semibold text-foreground">Hvem skal kunne se kanalerne?</p>
-                              <p className="text-[10px] text-muted-foreground">
-                                Botten opretter <span className="font-mono">#auto-scan-alerts</span>, <span className="font-mono">#full-scan-alerts</span> og <span className="font-mono">#curlykidd-info</span>
+                              <p className="text-sm font-semibold text-foreground leading-tight">Kanaltilgang</p>
+                              <p className="text-[10px] text-muted-foreground mt-0.5">
+                                <span className="font-mono">#auto-scan-alerts</span> · <span className="font-mono">#full-scan-alerts</span> · <span className="font-mono">#curlykidd-info</span>
                               </p>
                             </div>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => setChannelsPrivate(!channelsPrivate)}
-                            className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider transition-all ${
-                              channelsPrivate
-                                ? 'bg-amber-500/15 text-amber-500 ring-1 ring-amber-500/30'
-                                : 'bg-emerald-500/15 text-emerald-500 ring-1 ring-emerald-500/30'
-                            }`}
-                          >
-                            {channelsPrivate ? '🔒 Privat' : '🌐 Offentlig'}
-                          </button>
+                          <div className="shrink-0 inline-flex items-center p-0.5 rounded-full bg-secondary/40 ring-1 ring-border/40">
+                            <button
+                              type="button"
+                              onClick={() => setChannelsPrivate(true)}
+                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold transition-all ${
+                                channelsPrivate
+                                  ? 'bg-amber-500/20 text-amber-400 ring-1 ring-amber-500/40 shadow-sm'
+                                  : 'text-muted-foreground hover:text-foreground'
+                              }`}
+                            >
+                              🔒 Privat
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setChannelsPrivate(false)}
+                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold transition-all ${
+                                !channelsPrivate
+                                  ? 'bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/40 shadow-sm'
+                                  : 'text-muted-foreground hover:text-foreground'
+                              }`}
+                            >
+                              🌐 Offentlig
+                            </button>
+                          </div>
                         </div>
 
                         {channelsPrivate ? (
-                          <div className="p-3 space-y-2">
-                            <div className="flex items-center gap-2">
+                          <div className="p-3.5 space-y-2.5">
+                            <div className="relative flex items-center gap-2">
+                              <Search className="absolute left-2.5 w-3.5 h-3.5 text-muted-foreground/60 pointer-events-none" />
                               <Input
                                 value={roleSearch}
                                 onChange={(e) => setRoleSearch(e.target.value)}
                                 placeholder="Søg roller..."
-                                className="h-8 text-xs"
+                                className="h-9 text-xs pl-8 bg-secondary/30 border-border/40 focus-visible:ring-primary/30"
                               />
-                              <Badge variant="secondary" className="text-[10px] shrink-0">
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] shrink-0 h-6 px-2 border-primary/30 bg-primary/10 text-primary font-semibold"
+                              >
                                 {selectedRoleIds.length} valgt
                               </Badge>
                             </div>
 
                             {isLoadingRoles ? (
-                              <div className="flex items-center justify-center py-6">
-                                <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                              <div className="flex flex-col items-center justify-center py-8 gap-2">
+                                <Loader2 className="w-5 h-5 animate-spin text-primary/60" />
+                                <p className="text-[11px] text-muted-foreground">Henter roller fra Discord...</p>
                               </div>
                             ) : availableRoles.length === 0 ? (
-                              <p className="text-[11px] text-muted-foreground text-center py-4">
-                                Ingen roller fundet — sørg for at botten er inviteret med korrekte rettigheder
-                              </p>
+                              <div className="text-center py-6 px-4 rounded-lg bg-secondary/20 border border-dashed border-border/40">
+                                <AlertTriangle className="w-5 h-5 text-amber-500/60 mx-auto mb-2" />
+                                <p className="text-[11px] text-muted-foreground">
+                                  Ingen roller fundet — sørg for at botten har korrekte rettigheder
+                                </p>
+                              </div>
                             ) : (
-                              <div className="max-h-44 overflow-y-auto rounded-lg border border-border/30 bg-secondary/10 divide-y divide-border/20">
+                              <div className="max-h-48 overflow-y-auto rounded-lg border border-border/40 bg-secondary/15">
                                 {availableRoles
                                   .filter((r) => !roleSearch.trim() || r.name.toLowerCase().includes(roleSearch.toLowerCase()))
                                   .map((role) => {
@@ -2302,27 +2349,40 @@ const BotSetup = () => {
                                     return (
                                       <label
                                         key={role.id}
-                                        className={`flex items-center gap-2.5 px-3 py-1.5 cursor-pointer transition-colors text-xs ${
-                                          checked ? 'bg-primary/10' : 'hover:bg-secondary/30'
+                                        className={`group flex items-center gap-2.5 px-3 py-2 cursor-pointer transition-all text-xs border-l-2 ${
+                                          checked
+                                            ? 'bg-primary/10 border-l-primary'
+                                            : 'border-l-transparent hover:bg-secondary/40 hover:border-l-border/40'
                                         }`}
                                       >
-                                        <input
-                                          type="checkbox"
-                                          checked={checked}
-                                          onChange={() => {
-                                            setSelectedRoleIds((prev) =>
-                                              prev.includes(role.id)
-                                                ? prev.filter((id) => id !== role.id)
-                                                : [...prev, role.id]
-                                            );
-                                          }}
-                                          className="w-3.5 h-3.5 accent-primary"
-                                        />
+                                        <div className={`relative w-4 h-4 rounded shrink-0 transition-all ${
+                                          checked
+                                            ? 'bg-primary ring-1 ring-primary'
+                                            : 'bg-secondary/50 ring-1 ring-border/50 group-hover:ring-border'
+                                        }`}>
+                                          {checked && (
+                                            <CheckCircle className="absolute inset-0 w-4 h-4 text-primary-foreground" />
+                                          )}
+                                          <input
+                                            type="checkbox"
+                                            checked={checked}
+                                            onChange={() => {
+                                              setSelectedRoleIds((prev) =>
+                                                prev.includes(role.id)
+                                                  ? prev.filter((id) => id !== role.id)
+                                                  : [...prev, role.id]
+                                              );
+                                            }}
+                                            className="absolute inset-0 opacity-0 cursor-pointer"
+                                          />
+                                        </div>
                                         <span
-                                          className="w-2 h-2 rounded-full shrink-0"
+                                          className="w-2.5 h-2.5 rounded-full shrink-0 ring-1 ring-border/30"
                                           style={{ backgroundColor: colorHex || 'hsl(var(--muted-foreground))' }}
                                         />
-                                        <span className="font-medium text-foreground truncate flex-1">@{role.name}</span>
+                                        <span className={`font-medium truncate flex-1 ${checked ? 'text-foreground' : 'text-foreground/80'}`}>
+                                          @{role.name}
+                                        </span>
                                       </label>
                                     );
                                   })}
@@ -2330,18 +2390,22 @@ const BotSetup = () => {
                             )}
 
                             {selectedRoleIds.length === 0 && !isLoadingRoles && availableRoles.length > 0 && (
-                              <p className="text-[10px] text-amber-500 flex items-center gap-1">
-                                <AlertTriangle className="w-3 h-3" />
-                                Vælg mindst én rolle, ellers kan kun server-admins se kanalerne
-                              </p>
+                              <div className="flex items-start gap-2 rounded-lg bg-amber-500/10 border border-amber-500/25 px-3 py-2">
+                                <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+                                <p className="text-[10px] text-amber-400/90 leading-relaxed">
+                                  Vælg mindst én rolle, ellers kan kun server-admins se kanalerne
+                                </p>
+                              </div>
                             )}
                           </div>
                         ) : (
-                          <div className="p-4 text-center">
-                            <Users className="w-5 h-5 text-emerald-500 mx-auto mb-1.5" />
-                            <p className="text-xs font-medium text-foreground">Synlig for alle</p>
-                            <p className="text-[10px] text-muted-foreground mt-0.5">
-                              Alle medlemmer kan se de oprettede kanaler
+                          <div className="p-5 text-center">
+                            <div className="w-10 h-10 rounded-xl bg-emerald-500/15 ring-1 ring-emerald-500/30 flex items-center justify-center mx-auto mb-2">
+                              <Globe className="w-5 h-5 text-emerald-500" />
+                            </div>
+                            <p className="text-sm font-semibold text-foreground">Synlig for alle medlemmer</p>
+                            <p className="text-[10px] text-muted-foreground mt-1 max-w-xs mx-auto">
+                              Alle med adgang til serveren kan se de oprettede kanaler
                             </p>
                           </div>
                         )}
@@ -2511,9 +2575,17 @@ const BotSetup = () => {
                 )}
               </div>
             )}
+            </div>
 
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setAddDialogOpen(false)}>{t('bot.cancel')}</Button>
+            {/* Premium sticky footer */}
+            <DialogFooter className="px-6 py-4 border-t border-border/40 bg-secondary/20 backdrop-blur gap-2 sm:gap-2">
+              <Button
+                variant="ghost"
+                onClick={() => setAddDialogOpen(false)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                {t('bot.cancel')}
+              </Button>
               <Button
                 onClick={handleAdd}
                 disabled={
@@ -2523,7 +2595,7 @@ const BotSetup = () => {
                   (addMode === 'auto' && servers.some((server) => server.guild_id === guildId)) ||
                   (addMode === 'auto' && channelsPrivate && selectedRoleIds.length === 0)
                 }
-                className="gap-2"
+                className="gap-2 bg-gradient-to-b from-primary to-primary/85 hover:from-primary hover:to-primary text-primary-foreground shadow-lg shadow-primary/20 ring-1 ring-primary/40"
               >
                 {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                 {!isAdmin && (!ownershipVerified || ownershipVerified.guildId !== guildId)
