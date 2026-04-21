@@ -82,7 +82,7 @@ export default function DiscordServerSetup() {
   const [guilds, setGuilds] = useState<Guild[]>([]);
   const [selectedGuild, setSelectedGuild] = useState<string>('');
   const [inviteUrl, setInviteUrl] = useState<string>('');
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showWizard, setShowWizard] = useState(false);
   const [structurePreview, setStructurePreview] = useState<StructurePreview | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   
