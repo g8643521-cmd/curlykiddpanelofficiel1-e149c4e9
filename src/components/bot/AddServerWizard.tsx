@@ -99,10 +99,13 @@ export default function AddServerWizard(props: AddServerWizardProps) {
   const canPassStep1 = props.isAdmin || isVerified;
   const canPassStep2 = !props.channelsPrivate || props.selectedRoleIds.length > 0;
   const canPassStep3 = isAdvancedSettingsValid(props.advancedSettings);
-  const canFinish = canPassStep0 && canPassStep1 && canPassStep2 && canPassStep3;
+  // Access key step (step 4): always shown. Admins may leave blank, others must enter one.
+  const accessKeyTrimmed = props.accessKey.trim();
+  const canPassStep4 = props.isAdmin || /^CKP-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/i.test(accessKeyTrimmed);
+  const canFinish = canPassStep0 && canPassStep1 && canPassStep2 && canPassStep3 && canPassStep4;
 
-  // Step 1 is auto-skipped when admin
-  const visibleSteps: Step[] = props.isAdmin ? [0, 2, 3, 4] : [0, 1, 2, 3, 4];
+  // Step 1 (verify) is auto-skipped when admin. Access key step is always visible.
+  const visibleSteps: Step[] = props.isAdmin ? [0, 2, 3, 4, 5] : [0, 1, 2, 3, 4, 5];
   const currentVisibleIndex = visibleSteps.indexOf(step);
   const handleNext = () => {
     const next = visibleSteps[currentVisibleIndex + 1];
@@ -118,6 +121,7 @@ export default function AddServerWizard(props: AddServerWizardProps) {
     step === 1 ? canPassStep1 :
     step === 2 ? canPassStep2 :
     step === 3 ? canPassStep3 :
+    step === 4 ? canPassStep4 :
     true;
 
   const fmt = (key: string, vars: Record<string, string | number> = {}) => {
