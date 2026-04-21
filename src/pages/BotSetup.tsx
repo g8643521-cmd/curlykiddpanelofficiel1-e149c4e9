@@ -60,6 +60,7 @@ import MaintenanceBanner from '@/components/MaintenanceBanner';
 import { z } from 'zod';
 import { useAdminStatus } from '@/hooks/useAdminStatus';
 import { useAuthReady } from '@/hooks/useAuthReady';
+import { defaultAdvancedSettings, isAdvancedSettingsValid, type AdvancedSettings, type WizardChannel } from '@/components/bot/AdvancedSettingsStep';
 
 // Lazy-load heavy components that aren't needed on initial render
 const ParticleBackground = lazy(() => import('@/components/ParticleBackground'));
@@ -178,9 +179,12 @@ const BotSetup = () => {
   // Channel privacy / role permissions
   const [availableRoles, setAvailableRoles] = useState<{ id: string; name: string; color: number }[]>([]);
   const [isLoadingRoles, setIsLoadingRoles] = useState(false);
+  const [availableChannels, setAvailableChannels] = useState<WizardChannel[]>([]);
+  const [isLoadingChannels, setIsLoadingChannels] = useState(false);
   const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>([]);
   const [channelsPrivate, setChannelsPrivate] = useState(true);
   const [roleSearch, setRoleSearch] = useState('');
+  const [advancedSettings, setAdvancedSettings] = useState<AdvancedSettings>(defaultAdvancedSettings);
 
   // Ownership verification
   const [discordUserId, setDiscordUserId] = useState('');
@@ -280,6 +284,26 @@ const BotSetup = () => {
     }
   }, []);
 
+  const fetchGuildChannels = useCallback(async (targetGuildId: string) => {
+    if (!targetGuildId) return;
+    setIsLoadingChannels(true);
+    setAvailableChannels([]);
+    try {
+      const { data, error } = await supabase.functions.invoke('discord-member-check', {
+        body: { action: 'list-channels', guildId: targetGuildId },
+      });
+      if (!error && data?.success) {
+        setAvailableChannels(data.channels || []);
+      } else {
+        toast.error(data?.error || 'Could not load Discord channels');
+      }
+    } catch {
+      toast.error('Could not load Discord channels');
+    } finally {
+      setIsLoadingChannels(false);
+    }
+  }, []);
+
   const openAddDialog = useCallback(() => {
     setAddDialogOpen(true);
     setAddMode('auto');
@@ -287,9 +311,11 @@ const BotSetup = () => {
     setOwnershipError(null);
     setDiscordUserId('');
     setAvailableRoles([]);
+    setAvailableChannels([]);
     setSelectedRoleIds([]);
     setChannelsPrivate(true);
     setRoleSearch('');
+    setAdvancedSettings(defaultAdvancedSettings);
     fetchGuilds();
   }, [fetchGuilds]);
 
@@ -486,7 +512,15 @@ const BotSetup = () => {
         return;
       }
 
-      let effectiveWebhookUrl = webhookUrl.trim();
+      if (!isAdvancedSettingsValid(advancedSettings)) {
+        toast.error('Avancerede indstillinger er ikke gyldige endnu');
+        setIsSubmitting(false);
+        return;
+      }
+
+      let effectiveWebhookUrl = advancedSettings.use_custom_webhooks && advancedSettings.custom_auto_webhook.trim()
+        ? advancedSettings.custom_auto_webhook.trim()
+        : webhookUrl.trim();
 
       // Auto-create channels & webhooks if none provided (auto mode)
       if (!effectiveWebhookUrl && addMode === 'auto') {
@@ -544,16 +578,21 @@ const BotSetup = () => {
         return;
       }
 
+      const defaultInfoChannelId = advancedSettings.info_channel_id || (window as any).__infoChannelId || null;
+      const effectiveFullScanWebhook = advancedSettings.use_custom_webhooks && advancedSettings.custom_full_webhook.trim()
+        ? advancedSettings.custom_full_webhook.trim()
+        : ((window as any).__fullScanWebhookUrl || null);
+
       const insertPayload: any = {
         user_id: session.session.user.id,
         guild_id: parsed.data.guild_id,
         guild_name: parsed.data.guild_name,
         webhook_url: parsed.data.webhook_url,
-        manual_webhook_url: manualWebhookUrl.trim() && /^https:\/\/discord\.com\/api\/webhooks\//.test(manualWebhookUrl.trim()) ? manualWebhookUrl.trim() : null,
+        manual_webhook_url: effectiveFullScanWebhook || (manualWebhookUrl.trim() && /^https:\/\/discord\.com\/api\/webhooks\//.test(manualWebhookUrl.trim()) ? manualWebhookUrl.trim() : null),
         alert_channel_name: parsed.data.alert_channel_name || null,
-        auto_scan_webhook_url: (window as any).__autoScanWebhookUrl || null,
-        full_scan_webhook_url: (window as any).__fullScanWebhookUrl || null,
-        info_channel_id: (window as any).__infoChannelId || null,
+        auto_scan_webhook_url: effectiveWebhookUrl || (window as any).__autoScanWebhookUrl || null,
+        full_scan_webhook_url: effectiveFullScanWebhook,
+        info_channel_id: defaultInfoChannelId,
       };
 
       // Clean up temp vars
@@ -566,7 +605,11 @@ const BotSetup = () => {
         (insertPayload as any).guild_icon = selectedGuild.icon;
       }
 
-      const { error } = await supabase.from('discord_bot_servers').insert(insertPayload);
+      const { data: createdServer, error } = await supabase
+        .from('discord_bot_servers')
+        .insert(insertPayload)
+        .select('id')
+        .single();
 
       if (error) {
         console.error('Insert server error:', error);
@@ -576,6 +619,29 @@ const BotSetup = () => {
           toast.error(`Failed to add server: ${error.message || 'Unknown error'}`);
         }
       } else {
+        const { error: advancedError } = await supabase.from('bot_server_advanced_settings').upsert({
+          server_id: createdServer.id,
+          user_id: session.session.user.id,
+          auto_assign_cheater_role: advancedSettings.auto_assign_cheater_role,
+          cheater_role_id: advancedSettings.cheater_role_id,
+          auto_kick_cheaters: advancedSettings.auto_kick_cheaters,
+          auto_ban_cheaters: advancedSettings.auto_ban_cheaters,
+          min_bans_for_alert: advancedSettings.min_bans_for_alert,
+          alert_mention_role_id: advancedSettings.alert_mention_role_id,
+          notify_on_clean_joins: advancedSettings.notify_on_clean_joins,
+          log_all_joins: advancedSettings.log_all_joins,
+          auto_scan_interval_minutes: advancedSettings.auto_scan_interval_minutes,
+          info_channel_id: defaultInfoChannelId,
+        });
+
+        if (advancedError) {
+          await supabase.from('discord_bot_servers').delete().eq('id', createdServer.id);
+          console.error('Advanced settings insert error:', advancedError);
+          toast.error(`Failed to save advanced settings: ${advancedError.message || 'Unknown error'}`);
+          setIsSubmitting(false);
+          return;
+        }
+
         toast.success('Server added! CurlyKidd Bot will now monitor it.');
         setAddDialogOpen(false);
         setGuildId('');
@@ -583,6 +649,8 @@ const BotSetup = () => {
         setWebhookUrl('');
         setManualWebhookUrl('');
         setChannelName('');
+        setAvailableChannels([]);
+        setAdvancedSettings(defaultAdvancedSettings);
         await fetchServers();
       }
     } catch (e: any) {
@@ -2054,6 +2122,7 @@ const BotSetup = () => {
               setGuildId(g.id);
               setGuildName(g.name);
               fetchGuildRoles(g.id);
+              fetchGuildChannels(g.id);
             }}
             discordUserId={discordUserId}
             setDiscordUserId={(id) => {
@@ -2068,10 +2137,14 @@ const BotSetup = () => {
             onVerify={() => verifyOwnership(guildId, discordUserId)}
             availableRoles={availableRoles}
             isLoadingRoles={isLoadingRoles}
+            availableChannels={availableChannels}
+            isLoadingChannels={isLoadingChannels}
             selectedRoleIds={selectedRoleIds}
             setSelectedRoleIds={setSelectedRoleIds}
             channelsPrivate={channelsPrivate}
             setChannelsPrivate={setChannelsPrivate}
+            advancedSettings={advancedSettings}
+            setAdvancedSettings={setAdvancedSettings}
             isSubmitting={isSubmitting}
             onSubmit={handleAdd}
             onRefreshGuilds={fetchGuilds}

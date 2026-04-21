@@ -9,6 +9,7 @@ const corsHeaders = {
 
 const DISCORD_API = "https://discord.com/api/v10";
 const SCREENSHAREX_API = "https://screensharex.ac/api/search";
+const DISCORD_BOT_ID = "1491049580005949622";
 const BATCH_SIZE = 2000;
 const FIRST_BATCH_SIZE = 50; // Keep the first visible batch small so real numbers appear fast
 const CONCURRENCY = 100;
@@ -121,6 +122,22 @@ async function sendWebhookWithRetry(
     return false;
   }
   return false;
+}
+
+async function sendDiscordChannelMessageOrThrow(channelId: string, botToken: string, payload: any) {
+  const res = await fetchWithRetry(
+    `${DISCORD_API}/channels/${channelId}/messages`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+  );
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Failed to post setup message in channel ${channelId}: ${res.status} ${errText}`);
+  }
 }
 
 // ── Auto-moderation helpers ─────────────────────────────────────────────
@@ -593,12 +610,14 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Build permission overwrites: deny @everyone, allow selected roles
+      // Build permission overwrites: deny @everyone, allow selected roles + always allow the bot itself
       const VIEW_CHANNEL_PERM = "1024";
+      const BOT_CHANNEL_PERMS = String(1024 + 2048 + 16384 + 65536 + 536870912);
       const permissionOverwrites = privateChannels
         ? [
             { id: targetGuildId, type: 0, deny: VIEW_CHANNEL_PERM },
             ...allowedRoleIds.map((roleId) => ({ id: roleId, type: 0, allow: VIEW_CHANNEL_PERM })),
+            { id: DISCORD_BOT_ID, type: 1, allow: BOT_CHANNEL_PERMS },
           ]
         : [];
 
@@ -746,100 +765,79 @@ Deno.serve(async (req) => {
         // Always post welcome messages so users see them after (re)adding the server
         {
         // ── Auto-Scan channel message ──
-        await fetchWithRetry(
-          `${DISCORD_API}/channels/${autoScanChannel.id}/messages`,
-          {
-            method: "POST",
-            headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}`, "Content-Type": "application/json" },
-            body: JSON.stringify({
-              embeds: [{
-                ...baseEmbed,
-                title: "Auto-Scan Alerts",
-                description: [
-                  "This channel has been configured for **real-time automatic scanning**.",
-                  "",
-                  "Every minute, new members joining your server are automatically checked against the CurlyKidd cheater database. If a flagged account is detected, an alert will appear here immediately.",
-                  "",
-                  "```",
-                  "  ✦  Real-time cheater detection",
-                  "  ✦  Automatic member screening",
-                  "  ✦  Ban & ticket history reports",
-                  "```",
-                ].join("\n"),
-                fields: [
-                  { name: "Scan Frequency", value: "`Every 1 minute`", inline: true },
-                  { name: "Alert Type", value: "`Auto-Scan`", inline: true },
-                  { name: "Status", value: "🟢 Active", inline: true },
-                ],
-              }],
-              components: actionButtons,
-            }),
-          },
-        );
+        await sendDiscordChannelMessageOrThrow(autoScanChannel.id, DISCORD_BOT_TOKEN, {
+          embeds: [{
+            ...baseEmbed,
+            title: "Auto-Scan Alerts",
+            description: [
+              "This channel has been configured for **real-time automatic scanning**.",
+              "",
+              "Every minute, new members joining your server are automatically checked against the CurlyKidd cheater database. If a flagged account is detected, an alert will appear here immediately.",
+              "",
+              "```",
+              "  ✦  Real-time cheater detection",
+              "  ✦  Automatic member screening",
+              "  ✦  Ban & ticket history reports",
+              "```",
+            ].join("\n"),
+            fields: [
+              { name: "Scan Frequency", value: "`Every 1 minute`", inline: true },
+              { name: "Alert Type", value: "`Auto-Scan`", inline: true },
+              { name: "Status", value: "🟢 Active", inline: true },
+            ],
+          }],
+          components: actionButtons,
+        });
 
         // ── Full-Scan channel message ──
-        await fetchWithRetry(
-          `${DISCORD_API}/channels/${fullScanChannel.id}/messages`,
-          {
-            method: "POST",
-            headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}`, "Content-Type": "application/json" },
-            body: JSON.stringify({
-              embeds: [{
-                ...baseEmbed,
-                title: "Full-Scan Reports",
-                description: [
-                  "This channel receives **comprehensive server scan reports**.",
-                  "",
-                  "When a full scan is triggered from the CurlyKidd Panel, every member in your server is checked against the database. The detailed results — including flagged accounts, ban histories, and statistics — are posted here.",
-                  "",
-                  "```",
-                  "  ✦  Complete member analysis",
-                  "  ✦  Detailed ban history per user",
-                  "  ✦  Summary statistics & flagged accounts",
-                  "```",
-                ].join("\n"),
-                fields: [
-                  { name: "Scan Type", value: "`Manual Full-Scan`", inline: true },
-                  { name: "Alert Type", value: "`Full-Scan`", inline: true },
-                  { name: "Status", value: "🟢 Ready", inline: true },
-                ],
-              }],
-              components: actionButtons,
-            }),
-          },
-        );
+        await sendDiscordChannelMessageOrThrow(fullScanChannel.id, DISCORD_BOT_TOKEN, {
+          embeds: [{
+            ...baseEmbed,
+            title: "Full-Scan Reports",
+            description: [
+              "This channel receives **comprehensive server scan reports**.",
+              "",
+              "When a full scan is triggered from the CurlyKidd Panel, every member in your server is checked against the database. The detailed results — including flagged accounts, ban histories, and statistics — are posted here.",
+              "",
+              "```",
+              "  ✦  Complete member analysis",
+              "  ✦  Detailed ban history per user",
+              "  ✦  Summary statistics & flagged accounts",
+              "```",
+            ].join("\n"),
+            fields: [
+              { name: "Scan Type", value: "`Manual Full-Scan`", inline: true },
+              { name: "Alert Type", value: "`Full-Scan`", inline: true },
+              { name: "Status", value: "🟢 Ready", inline: true },
+            ],
+          }],
+          components: actionButtons,
+        });
 
         // ── Info channel message ──
-        await fetchWithRetry(
-          `${DISCORD_API}/channels/${infoChannel.id}/messages`,
-          {
-            method: "POST",
-            headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}`, "Content-Type": "application/json" },
-            body: JSON.stringify({
-              embeds: [{
-                ...baseEmbed,
-                title: "CurlyKidd Bot — Setup Complete",
-                description: [
-                  "Your server is now fully connected to the **CurlyKidd Anti-Cheat Panel**.",
-                  "",
-                  "The following channels have been created automatically:",
-                  "",
-                  "📡  <#" + autoScanChannel.id + ">  —  Real-time auto-scan alerts",
-                  "🔍  <#" + fullScanChannel.id + ">  —  Full server scan reports",
-                  "📋  <#" + infoChannel.id + ">  —  Info & announcements",
-                  "",
-                  "Everything is configured and ready. Manage your server from the [CurlyKidd Dashboard](https://curlykiddpanel.lovable.app/bot).",
-                ].join("\n"),
-                fields: [
-                  { name: "Dashboard", value: "[Open Panel](https://curlykiddpanel.lovable.app/bot)", inline: true },
-                  { name: "Protection", value: "🟢 Active", inline: true },
-                  { name: "Channels", value: "`3 created`", inline: true },
-                ],
-              }],
-              components: actionButtons,
-            }),
-          },
-        );
+        await sendDiscordChannelMessageOrThrow(infoChannel.id, DISCORD_BOT_TOKEN, {
+          embeds: [{
+            ...baseEmbed,
+            title: "CurlyKidd Bot — Setup Complete",
+            description: [
+              "Your server is now fully connected to the **CurlyKidd Anti-Cheat Panel**.",
+              "",
+              "The following channels have been created automatically:",
+              "",
+              "📡  <#" + autoScanChannel.id + ">  —  Real-time auto-scan alerts",
+              "🔍  <#" + fullScanChannel.id + ">  —  Full server scan reports",
+              "📋  <#" + infoChannel.id + ">  —  Info & announcements",
+              "",
+              "Everything is configured and ready. Manage your server from the [CurlyKidd Dashboard](https://curlykiddpanel.lovable.app/bot).",
+            ].join("\n"),
+            fields: [
+              { name: "Dashboard", value: "[Open Panel](https://curlykiddpanel.lovable.app/bot)", inline: true },
+              { name: "Protection", value: "🟢 Active", inline: true },
+              { name: "Channels", value: "`3 created`", inline: true },
+            ],
+          }],
+          components: actionButtons,
+        });
         } // end always-post block
 
         return new Response(
