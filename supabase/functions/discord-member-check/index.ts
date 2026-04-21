@@ -140,6 +140,55 @@ async function sendDiscordChannelMessageOrThrow(channelId: string, botToken: str
   }
 }
 
+// Soft-paced send used by the welcome flow. Returns { ok, status, body, attempts }
+// instead of throwing, so the caller can collect per-channel diagnostics for
+// the audit log + the client-side error dialog.
+async function sendDiscordChannelMessageDetailed(
+  channelId: string,
+  botToken: string,
+  payload: any,
+  maxRetries = 3,
+): Promise<{ ok: boolean; status: number; body: any; attempts: number; rate_limited: boolean }> {
+  let lastStatus = 0;
+  let lastBody: any = null;
+  let rateLimited = false;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+      method: "POST",
+      headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    lastStatus = res.status;
+    const text = await res.text();
+    try { lastBody = JSON.parse(text); } catch { lastBody = text; }
+
+    if (res.ok) {
+      return { ok: true, status: res.status, body: lastBody, attempts: attempt, rate_limited: rateLimited };
+    }
+
+    // 429 → respect Discord's retry_after (seconds, fractional)
+    if (res.status === 429) {
+      rateLimited = true;
+      const retryAfter = Number((lastBody as any)?.retry_after) || 2 ** attempt;
+      const waitMs = Math.min(Math.ceil(retryAfter * 1000) + 100, 10_000);
+      console.log(`[welcome] 429 in #${channelId}, retry_after=${retryAfter}s, waiting ${waitMs}ms (attempt ${attempt}/${maxRetries})`);
+      await sleep(waitMs);
+      continue;
+    }
+
+    // 5xx → exponential backoff with jitter
+    if (res.status >= 500 && attempt < maxRetries) {
+      const wait = 2 ** attempt * 500 + Math.floor(Math.random() * 300);
+      await sleep(wait);
+      continue;
+    }
+
+    // 4xx (other) → no point retrying, surface immediately
+    break;
+  }
+  return { ok: false, status: lastStatus, body: lastBody, attempts: maxRetries, rate_limited: rateLimited };
+}
+
 // ── Auto-moderation helpers ─────────────────────────────────────────────
 // Fetch advanced settings for a server (cached per invocation through caller)
 async function fetchAdvancedSettings(supabase: any, serverId: string) {
