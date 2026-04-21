@@ -174,6 +174,13 @@ const BotSetup = () => {
   const [isLoadingGuilds, setIsLoadingGuilds] = useState(false);
   const [addMode, setAddMode] = useState<'auto' | 'manual'>('auto');
 
+  // Channel privacy / role permissions
+  const [availableRoles, setAvailableRoles] = useState<{ id: string; name: string; color: number }[]>([]);
+  const [isLoadingRoles, setIsLoadingRoles] = useState(false);
+  const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>([]);
+  const [channelsPrivate, setChannelsPrivate] = useState(true);
+  const [roleSearch, setRoleSearch] = useState('');
+
   // Ownership verification
   const [discordUserId, setDiscordUserId] = useState('');
   const [isVerifyingOwnership, setIsVerifyingOwnership] = useState(false);
