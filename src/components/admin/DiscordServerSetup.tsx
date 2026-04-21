@@ -666,7 +666,12 @@ export default function DiscordServerSetup() {
           <div className="space-y-2">
             <div className="grid grid-cols-2 gap-2">
               <Button 
-                onClick={() => setShowWizard(true)} 
+                onClick={async () => {
+                  if (!structurePreview) {
+                    await fetchStructurePreview();
+                  }
+                  setShowWizard(true);
+                }} 
                 disabled={!selectedGuild || isProcessing}
                 size="sm"
                 className="gap-2"
