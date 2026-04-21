@@ -2043,57 +2043,66 @@ const BotSetup = () => {
             setAddDialogOpen(false);
           }
         }}>
-          <DialogContent className="sm:max-w-lg">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Bot className="w-5 h-5 text-primary" />
-                {t('bot.add_discord_server')}
-              </DialogTitle>
-              <DialogDescription>
-                {t('bot.add_dialog_desc')}
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="mb-2">
-              <a
-                href={BOT_INVITE_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-xs text-primary hover:text-primary/80 transition-colors mb-3"
-              >
-                <Bot className="w-3.5 h-3.5" />
-                {t('bot.invite_link')}
-                <ExternalLink className="w-3 h-3" />
-              </a>
+          <DialogContent className="sm:max-w-xl p-0 overflow-hidden border-border/40 bg-card/95 backdrop-blur-xl gap-0">
+            {/* Premium gradient header */}
+            <div className="relative overflow-hidden border-b border-border/40">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent" />
+              <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full bg-primary/10 blur-3xl" />
+              <div className="relative px-6 py-5">
+                <DialogHeader className="space-y-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/30 to-primary/10 ring-1 ring-primary/30 flex items-center justify-center shadow-lg shadow-primary/10">
+                      <Bot className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="min-w-0">
+                      <DialogTitle className="text-base font-semibold tracking-tight">
+                        {t('bot.add_discord_server')}
+                      </DialogTitle>
+                      <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                        {t('bot.add_dialog_desc')}
+                      </DialogDescription>
+                    </div>
+                  </div>
+                  <a
+                    href={BOT_INVITE_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-[11px] font-medium text-primary/90 hover:text-primary transition-colors w-fit"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    {t('bot.invite_link')}
+                  </a>
+                </DialogHeader>
+              </div>
             </div>
 
-            <div className="flex gap-2 mb-2">
-              <button
-                onClick={() => {
-                  setAddMode('auto');
-                  fetchGuilds();
-                }}
-                className={`flex-1 text-xs font-medium py-2 px-3 rounded-lg transition-all ${
-                  addMode === 'auto'
-                    ? 'bg-primary/15 text-primary ring-1 ring-primary/30'
-                    : 'bg-secondary/30 text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <Zap className="w-3.5 h-3.5 inline mr-1.5" />
-                {t('bot.auto_detect')}
-              </button>
-              <button
-                onClick={() => setAddMode('manual')}
-                className={`flex-1 text-xs font-medium py-2 px-3 rounded-lg transition-all ${
-                  addMode === 'manual'
-                    ? 'bg-primary/15 text-primary ring-1 ring-primary/30'
-                    : 'bg-secondary/30 text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <Settings className="w-3.5 h-3.5 inline mr-1.5" />
-                {t('bot.manual')}
-              </button>
-            </div>
+            {/* Scrollable body */}
+            <div className="px-6 py-5 max-h-[65vh] overflow-y-auto">
+              {/* Refined segmented control */}
+              <div className="relative grid grid-cols-2 p-1 rounded-xl bg-secondary/40 ring-1 ring-border/40 mb-5">
+                <div
+                  className="absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-lg bg-gradient-to-b from-primary/25 to-primary/15 ring-1 ring-primary/30 shadow-sm transition-transform duration-300 ease-out"
+                  style={{ transform: addMode === 'auto' ? 'translateX(0)' : 'translateX(calc(100% + 4px))' }}
+                />
+                <button
+                  onClick={() => { setAddMode('auto'); fetchGuilds(); }}
+                  className={`relative z-10 inline-flex items-center justify-center gap-1.5 text-xs font-semibold py-2 px-3 rounded-lg transition-colors ${
+                    addMode === 'auto' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <Zap className="w-3.5 h-3.5" />
+                  {t('bot.auto_detect')}
+                </button>
+                <button
+                  onClick={() => setAddMode('manual')}
+                  className={`relative z-10 inline-flex items-center justify-center gap-1.5 text-xs font-semibold py-2 px-3 rounded-lg transition-colors ${
+                    addMode === 'manual' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <Settings className="w-3.5 h-3.5" />
+                  {t('bot.manual')}
+                </button>
+              </div>
 
             {addMode === 'auto' ? (
               <div className="space-y-4 py-2">
