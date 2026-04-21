@@ -1728,6 +1728,9 @@ Deno.serve(async (req) => {
         return await buildStoppedResponse(server, totalChecked, totalSkipped, totalAlerts, guildTotalMembers, supabase, scanStartedAt, fullScan, bgScanHistoryId);
       }
 
+      // Load advanced settings once for the whole batch (cheap single row lookup)
+      const advancedSettings = await fetchAdvancedSettings(supabase, server.id);
+
       const alertInserts = cheaters.map(({ member }) => {
         const discordId = member.user!.id!;
         alertedSet.add(fullScan ? discordId : `${discordId}:${member.joined_at}`);
@@ -1749,6 +1752,28 @@ Deno.serve(async (req) => {
       Promise.allSettled(
         cheaters.map(({ member, sxData }) => saveDetectedCheater(supabase, sxData, member, server)),
       ).catch(() => {});
+
+      // ── Auto-moderation pass ──
+      // Run sequentially to respect Discord rate limits, but fire-and-forget so the
+      // scan response isn't blocked.
+      if (advancedSettings && (advancedSettings.auto_kick_cheaters || advancedSettings.auto_ban_cheaters || advancedSettings.auto_assign_cheater_role)) {
+        (async () => {
+          for (const { member, sxData } of cheaters) {
+            const userId = member.user?.id;
+            if (!userId) continue;
+            const totalBans = sxData?.bans?.length || 0;
+            await applyAutoModeration({
+              guildId: server.guild_id,
+              serverId: server.id,
+              userId,
+              totalBans,
+              settings: advancedSettings,
+              botToken: DISCORD_BOT_TOKEN,
+            });
+            await sleep(150); // gentle on Discord rate limits
+          }
+        })().catch((e) => console.error("auto-mod batch error:", e));
+      }
     }
 
     if (bgScanHistoryId) {
