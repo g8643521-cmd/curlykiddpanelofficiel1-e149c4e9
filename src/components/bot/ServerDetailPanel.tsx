@@ -447,6 +447,9 @@ const ServerDetailPanel = ({
     if (activeTab === 'settings' && server) {
       fetchDiscordRoles();
     }
+    if (activeTab === 'audit' && server) {
+      fetchAudit();
+    }
   }, [activeTab, server?.id]);
 
   const saveSettings = async () => {
