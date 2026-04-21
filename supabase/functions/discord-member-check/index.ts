@@ -811,10 +811,35 @@ Deno.serve(async (req) => {
           },
         ];
 
-        // Always post welcome messages so users see them after (re)adding the server
-        {
+        // Always post welcome messages so users see them after (re)adding the server.
+        // We collect per-channel diagnostics so the client can surface a detailed error dialog.
+        const welcomeResults: Array<{
+          channel: string;
+          channel_id: string;
+          ok: boolean;
+          status: number;
+          attempts: number;
+          rate_limited: boolean;
+          error?: any;
+        }> = [];
+
+        const postWith = async (label: string, channelId: string, payload: any) => {
+          const r = await sendDiscordChannelMessageDetailed(channelId, DISCORD_BOT_TOKEN, payload);
+          welcomeResults.push({
+            channel: label,
+            channel_id: channelId,
+            ok: r.ok,
+            status: r.status,
+            attempts: r.attempts,
+            rate_limited: r.rate_limited,
+            error: r.ok ? undefined : r.body,
+          });
+          // Soft pace between sends to stay under Discord's per-channel rate limit
+          await sleep(350);
+        };
+
         // ── Auto-Scan channel message ──
-        await sendDiscordChannelMessageOrThrow(autoScanChannel.id, DISCORD_BOT_TOKEN, {
+        await postWith("auto-scan-alerts", autoScanChannel.id, {
           embeds: [{
             ...baseEmbed,
             title: "Auto-Scan Alerts",
@@ -839,7 +864,7 @@ Deno.serve(async (req) => {
         });
 
         // ── Full-Scan channel message ──
-        await sendDiscordChannelMessageOrThrow(fullScanChannel.id, DISCORD_BOT_TOKEN, {
+        await postWith("full-scan-alerts", fullScanChannel.id, {
           embeds: [{
             ...baseEmbed,
             title: "Full-Scan Reports",
@@ -864,7 +889,7 @@ Deno.serve(async (req) => {
         });
 
         // ── Info channel message ──
-        await sendDiscordChannelMessageOrThrow(infoChannel.id, DISCORD_BOT_TOKEN, {
+        await postWith("curlykidd-info", infoChannel.id, {
           embeds: [{
             ...baseEmbed,
             title: "CurlyKidd Bot — Setup Complete",
@@ -887,11 +912,15 @@ Deno.serve(async (req) => {
           }],
           components: actionButtons,
         });
-        } // end always-post block
+
+        const failed = welcomeResults.filter((r) => !r.ok);
+        const overallSuccess = failed.length === 0;
+        const partial = failed.length > 0 && failed.length < welcomeResults.length;
 
         return new Response(
           JSON.stringify({
-            success: true,
+            success: overallSuccess,
+            partial,
             all_existed: allExisted,
             skipped_channels: skippedChannels,
             created_channels: createdChannels,
@@ -904,8 +933,13 @@ Deno.serve(async (req) => {
               full_scan: fullScanChannel,
               info: infoChannel,
             },
+            welcome_results: welcomeResults,
+            error: overallSuccess ? undefined : `Failed to post welcome message in ${failed.length}/${welcomeResults.length} channel(s)`,
           }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          {
+            status: overallSuccess ? 200 : (partial ? 207 : 502),
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
         );
       } catch (err: any) {
         return new Response(
