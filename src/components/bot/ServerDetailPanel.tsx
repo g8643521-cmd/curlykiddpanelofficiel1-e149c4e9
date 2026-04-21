@@ -247,9 +247,44 @@ const ServerDetailPanel = ({
     }
   };
 
+  const applyWelcomeResultsToSteps = (welcomeResults: any[]) => {
+    setWelcomeSteps((prev) => {
+      // Start from the predefined order so steps are consistent even if the API returns fewer.
+      const base: WelcomeStep[] = (prev ?? WELCOME_STEP_DEFS.map((s) => ({ ...s, status: 'pending' as StepStatus })))
+        .map((s) => ({ ...s }));
+
+      welcomeResults.forEach((r, idx) => {
+        const matchIdx = base.findIndex(
+          (s) => s.key === r.channel || s.label.replace(/^#/, '') === r.channel,
+        );
+        const target = matchIdx >= 0 ? matchIdx : Math.min(idx, base.length - 1);
+        base[target] = {
+          ...base[target],
+          // Keep the channel name returned by the API for accuracy.
+          label: r.channel ? `#${r.channel}` : base[target].label,
+          status: r.ok ? 'success' : 'fail',
+          httpStatus: r.status,
+          attempts: r.attempts,
+          rateLimited: r.rate_limited,
+          error: r.ok ? undefined : r.error,
+        };
+      });
+
+      // Any remaining 'in_progress' that wasn't reported → mark as fail (didn't run).
+      return base.map((s) => (s.status === 'in_progress' ? { ...s, status: 'fail' } : s));
+    });
+  };
+
   const handleResendWelcome = async () => {
     if (!server) return;
     setIsResendingWelcome(true);
+    // Initialise the stepper: first step is in-progress, rest are pending.
+    setWelcomeSteps(
+      WELCOME_STEP_DEFS.map((s, i) => ({
+        ...s,
+        status: i === 0 ? 'in_progress' : 'pending',
+      })),
+    );
     try {
       const { data, error } = await supabase.functions.invoke('discord-member-check', {
         body: { action: 'create-webhook', guildId: server.guild_id, private_channels: false },
@@ -258,6 +293,13 @@ const ServerDetailPanel = ({
       // Network / function-level error
       if (error) {
         const errMsg = error.message || 'Edge function error';
+        setWelcomeSteps((prev) =>
+          (prev ?? WELCOME_STEP_DEFS.map((s) => ({ ...s, status: 'pending' as StepStatus }))).map((s) => ({
+            ...s,
+            status: s.status === 'success' ? 'success' : 'fail',
+            error: s.error ?? errMsg,
+          })),
+        );
         setErrorDialog({
           open: true,
           title: 'Resend failed (function error)',
@@ -270,6 +312,7 @@ const ServerDetailPanel = ({
       }
 
       const welcomeResults: any[] = data?.welcome_results ?? [];
+      applyWelcomeResultsToSteps(welcomeResults);
       const failed = welcomeResults.filter((r) => !r.ok);
 
       if (data?.success === false || failed.length > 0) {
@@ -293,6 +336,13 @@ const ServerDetailPanel = ({
       toast.success('Welcome messages resent to Discord');
     } catch (e: any) {
       const errMsg = e?.message ?? String(e);
+      setWelcomeSteps((prev) =>
+        (prev ?? WELCOME_STEP_DEFS.map((s) => ({ ...s, status: 'pending' as StepStatus }))).map((s) => ({
+          ...s,
+          status: s.status === 'success' ? 'success' : 'fail',
+          error: s.error ?? errMsg,
+        })),
+      );
       setErrorDialog({
         open: true,
         title: 'Resend failed (unexpected)',
@@ -303,8 +353,43 @@ const ServerDetailPanel = ({
       toast.error('Resend failed — see details');
     } finally {
       setIsResendingWelcome(false);
+      // After a completed resend, refresh the audit tab in the background.
+      fetchAudit();
     }
   };
+
+  const fetchAudit = useCallback(async () => {
+    if (!server) return;
+    setAuditLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('server_audit_log')
+        .select('id, action, status, created_at, user_id, details, error_message')
+        .eq('server_id', server.id)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error) throw error;
+      const rows = (data ?? []) as AuditRow[];
+
+      const userIds = [...new Set(rows.map((r) => r.user_id).filter(Boolean) as string[])];
+      let actorMap = new Map<string, { display_name: string | null; email: string | null; avatar_url: string | null }>();
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, display_name, email, avatar_url')
+          .in('user_id', userIds);
+        actorMap = new Map((profiles || []).map((p: any) => [p.user_id, p]));
+      }
+      setAuditRows(rows.map((r) => ({ ...r, actor: r.user_id ? actorMap.get(r.user_id) ?? null : null })));
+    } catch (e) {
+      console.error('Failed to load audit log:', e);
+      setAuditRows([]);
+    } finally {
+      setAuditLoading(false);
+    }
+  }, [server?.id]);
+
 
   const [settings, setSettings] = useState<BotServerSettings | null>(null);
   const [settingsLoading, setSettingsLoading] = useState(false);
