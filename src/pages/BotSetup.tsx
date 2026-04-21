@@ -2122,6 +2122,7 @@ const BotSetup = () => {
               setGuildId(g.id);
               setGuildName(g.name);
               fetchGuildRoles(g.id);
+              fetchGuildChannels(g.id);
             }}
             discordUserId={discordUserId}
             setDiscordUserId={(id) => {
@@ -2136,10 +2137,14 @@ const BotSetup = () => {
             onVerify={() => verifyOwnership(guildId, discordUserId)}
             availableRoles={availableRoles}
             isLoadingRoles={isLoadingRoles}
+            availableChannels={availableChannels}
+            isLoadingChannels={isLoadingChannels}
             selectedRoleIds={selectedRoleIds}
             setSelectedRoleIds={setSelectedRoleIds}
             channelsPrivate={channelsPrivate}
             setChannelsPrivate={setChannelsPrivate}
+            advancedSettings={advancedSettings}
+            setAdvancedSettings={setAdvancedSettings}
             isSubmitting={isSubmitting}
             onSubmit={handleAdd}
             onRefreshGuilds={fetchGuilds}
