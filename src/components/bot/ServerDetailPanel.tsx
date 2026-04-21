@@ -6,7 +6,7 @@ import {
   ShieldAlert, Ban, UserX, Bell, ScrollText, Timer, AtSign, Zap,
   ExternalLink, CheckCircle2, XCircle, ChevronRight, Send
 } from 'lucide-react';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -185,6 +185,34 @@ const ServerDetailPanel = ({
   const [isInviting, setIsInviting] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [isResendingWelcome, setIsResendingWelcome] = useState(false);
+  const [errorDialog, setErrorDialog] = useState<{
+    open: boolean;
+    title: string;
+    summary: string;
+    details: any;
+  }>({ open: false, title: '', summary: '', details: null });
+
+  const writeAudit = async (
+    status: 'success' | 'fail' | 'partial',
+    details: any,
+    errorMessage?: string,
+  ) => {
+    if (!server) return;
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      await supabase.from('server_audit_log').insert({
+        server_id: server.id,
+        guild_id: server.guild_id,
+        user_id: sess?.session?.user?.id ?? null,
+        action: 'resend_welcome',
+        status,
+        details,
+        error_message: errorMessage ?? null,
+      });
+    } catch (e) {
+      console.error('Failed to write audit log:', e);
+    }
+  };
 
   const handleResendWelcome = async () => {
     if (!server) return;
@@ -193,18 +221,53 @@ const ServerDetailPanel = ({
       const { data, error } = await supabase.functions.invoke('discord-member-check', {
         body: { action: 'create-webhook', guildId: server.guild_id, private_channels: false },
       });
+
+      // Network / function-level error
       if (error) {
-        toast.error(`Resend failed: ${error.message}`);
-        console.error('Resend welcome error:', error);
-      } else if (data?.success === false) {
-        toast.error(`Resend failed: ${data.error ?? 'Unknown error'}`);
-        console.error('Resend welcome error:', data);
-      } else {
-        toast.success('Welcome messages resent to Discord');
+        const errMsg = error.message || 'Edge function error';
+        setErrorDialog({
+          open: true,
+          title: 'Resend failed (function error)',
+          summary: errMsg,
+          details: { error, returned: data ?? null },
+        });
+        await writeAudit('fail', { error: errMsg, returned: data ?? null }, errMsg);
+        toast.error('Resend failed — see details');
+        return;
       }
+
+      const welcomeResults: any[] = data?.welcome_results ?? [];
+      const failed = welcomeResults.filter((r) => !r.ok);
+
+      if (data?.success === false || failed.length > 0) {
+        const status: 'fail' | 'partial' = failed.length === welcomeResults.length || welcomeResults.length === 0
+          ? 'fail'
+          : 'partial';
+        const errMsg = data?.error
+          ?? `Failed to post in ${failed.length}/${welcomeResults.length || 3} channel(s)`;
+        setErrorDialog({
+          open: true,
+          title: status === 'partial' ? 'Resend partially failed' : 'Resend failed (Discord API)',
+          summary: errMsg,
+          details: data,
+        });
+        await writeAudit(status, data, errMsg);
+        toast.error(status === 'partial' ? 'Some channels failed' : 'Resend failed — see details');
+        return;
+      }
+
+      await writeAudit('success', data);
+      toast.success('Welcome messages resent to Discord');
     } catch (e: any) {
-      toast.error(`Resend failed: ${e?.message ?? e}`);
-      console.error(e);
+      const errMsg = e?.message ?? String(e);
+      setErrorDialog({
+        open: true,
+        title: 'Resend failed (unexpected)',
+        summary: errMsg,
+        details: { exception: errMsg, stack: e?.stack ?? null },
+      });
+      await writeAudit('fail', { exception: errMsg }, errMsg);
+      toast.error('Resend failed — see details');
     } finally {
       setIsResendingWelcome(false);
     }
@@ -855,6 +918,94 @@ const ServerDetailPanel = ({
           </div>
         </Tabs>
       </DialogContent>
+
+      {/* ── Resend welcome — detailed error dialog ── */}
+      <Dialog open={errorDialog.open} onOpenChange={(open) => setErrorDialog((s) => ({ ...s, open }))}>
+        <DialogContent className="sm:max-w-[640px] max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <XCircle className="w-5 h-5" />
+              {errorDialog.title}
+            </DialogTitle>
+            <DialogDescription className="text-foreground/80">
+              {errorDialog.summary}
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Per-channel results */}
+          {Array.isArray(errorDialog.details?.welcome_results) && errorDialog.details.welcome_results.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/60">
+                Per-channel results
+              </p>
+              <div className="rounded-lg border border-border/20 divide-y divide-border/10 overflow-hidden">
+                {errorDialog.details.welcome_results.map((r: any) => (
+                  <div key={r.channel_id} className="flex items-start gap-3 px-3 py-2.5 bg-card/30">
+                    {r.ok
+                      ? <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" />
+                      : <XCircle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[12px] font-semibold text-foreground">#{r.channel}</span>
+                        <Badge variant="outline" className="text-[9px] h-[16px] px-1.5">
+                          HTTP {r.status || '—'}
+                        </Badge>
+                        <Badge variant="outline" className="text-[9px] h-[16px] px-1.5">
+                          {r.attempts} attempt{r.attempts === 1 ? '' : 's'}
+                        </Badge>
+                        {r.rate_limited && (
+                          <Badge variant="outline" className="text-[9px] h-[16px] px-1.5 border-amber-500/30 text-amber-400">
+                            rate-limited
+                          </Badge>
+                        )}
+                      </div>
+                      {!r.ok && r.error && (
+                        <pre className="mt-1.5 text-[10px] text-muted-foreground/80 bg-background/60 rounded p-2 overflow-x-auto whitespace-pre-wrap break-words">
+                          {typeof r.error === 'string' ? r.error : JSON.stringify(r.error, null, 2)}
+                        </pre>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Raw response */}
+          <div className="space-y-2">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/60">
+              Raw response
+            </p>
+            <pre className="text-[10px] text-muted-foreground/80 bg-card/40 border border-border/20 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap break-words max-h-[280px]">
+              {JSON.stringify(errorDialog.details, null, 2)}
+            </pre>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                navigator.clipboard.writeText(JSON.stringify(errorDialog.details, null, 2));
+                toast.success('Error details copied');
+              }}
+            >
+              <Copy className="w-3.5 h-3.5" /> Copy details
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                setErrorDialog((s) => ({ ...s, open: false }));
+                handleResendWelcome();
+              }}
+              disabled={isResendingWelcome}
+            >
+              {isResendingWelcome ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+              Retry
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 };

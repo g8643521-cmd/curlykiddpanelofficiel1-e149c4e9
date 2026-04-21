@@ -140,6 +140,55 @@ async function sendDiscordChannelMessageOrThrow(channelId: string, botToken: str
   }
 }
 
+// Soft-paced send used by the welcome flow. Returns { ok, status, body, attempts }
+// instead of throwing, so the caller can collect per-channel diagnostics for
+// the audit log + the client-side error dialog.
+async function sendDiscordChannelMessageDetailed(
+  channelId: string,
+  botToken: string,
+  payload: any,
+  maxRetries = 3,
+): Promise<{ ok: boolean; status: number; body: any; attempts: number; rate_limited: boolean }> {
+  let lastStatus = 0;
+  let lastBody: any = null;
+  let rateLimited = false;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+      method: "POST",
+      headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    lastStatus = res.status;
+    const text = await res.text();
+    try { lastBody = JSON.parse(text); } catch { lastBody = text; }
+
+    if (res.ok) {
+      return { ok: true, status: res.status, body: lastBody, attempts: attempt, rate_limited: rateLimited };
+    }
+
+    // 429 → respect Discord's retry_after (seconds, fractional)
+    if (res.status === 429) {
+      rateLimited = true;
+      const retryAfter = Number((lastBody as any)?.retry_after) || 2 ** attempt;
+      const waitMs = Math.min(Math.ceil(retryAfter * 1000) + 100, 10_000);
+      console.log(`[welcome] 429 in #${channelId}, retry_after=${retryAfter}s, waiting ${waitMs}ms (attempt ${attempt}/${maxRetries})`);
+      await sleep(waitMs);
+      continue;
+    }
+
+    // 5xx → exponential backoff with jitter
+    if (res.status >= 500 && attempt < maxRetries) {
+      const wait = 2 ** attempt * 500 + Math.floor(Math.random() * 300);
+      await sleep(wait);
+      continue;
+    }
+
+    // 4xx (other) → no point retrying, surface immediately
+    break;
+  }
+  return { ok: false, status: lastStatus, body: lastBody, attempts: maxRetries, rate_limited: rateLimited };
+}
+
 // ── Auto-moderation helpers ─────────────────────────────────────────────
 // Fetch advanced settings for a server (cached per invocation through caller)
 async function fetchAdvancedSettings(supabase: any, serverId: string) {
@@ -762,10 +811,35 @@ Deno.serve(async (req) => {
           },
         ];
 
-        // Always post welcome messages so users see them after (re)adding the server
-        {
+        // Always post welcome messages so users see them after (re)adding the server.
+        // We collect per-channel diagnostics so the client can surface a detailed error dialog.
+        const welcomeResults: Array<{
+          channel: string;
+          channel_id: string;
+          ok: boolean;
+          status: number;
+          attempts: number;
+          rate_limited: boolean;
+          error?: any;
+        }> = [];
+
+        const postWith = async (label: string, channelId: string, payload: any) => {
+          const r = await sendDiscordChannelMessageDetailed(channelId, DISCORD_BOT_TOKEN, payload);
+          welcomeResults.push({
+            channel: label,
+            channel_id: channelId,
+            ok: r.ok,
+            status: r.status,
+            attempts: r.attempts,
+            rate_limited: r.rate_limited,
+            error: r.ok ? undefined : r.body,
+          });
+          // Soft pace between sends to stay under Discord's per-channel rate limit
+          await sleep(350);
+        };
+
         // ── Auto-Scan channel message ──
-        await sendDiscordChannelMessageOrThrow(autoScanChannel.id, DISCORD_BOT_TOKEN, {
+        await postWith("auto-scan-alerts", autoScanChannel.id, {
           embeds: [{
             ...baseEmbed,
             title: "Auto-Scan Alerts",
@@ -790,7 +864,7 @@ Deno.serve(async (req) => {
         });
 
         // ── Full-Scan channel message ──
-        await sendDiscordChannelMessageOrThrow(fullScanChannel.id, DISCORD_BOT_TOKEN, {
+        await postWith("full-scan-alerts", fullScanChannel.id, {
           embeds: [{
             ...baseEmbed,
             title: "Full-Scan Reports",
@@ -815,7 +889,7 @@ Deno.serve(async (req) => {
         });
 
         // ── Info channel message ──
-        await sendDiscordChannelMessageOrThrow(infoChannel.id, DISCORD_BOT_TOKEN, {
+        await postWith("curlykidd-info", infoChannel.id, {
           embeds: [{
             ...baseEmbed,
             title: "CurlyKidd Bot — Setup Complete",
@@ -838,11 +912,15 @@ Deno.serve(async (req) => {
           }],
           components: actionButtons,
         });
-        } // end always-post block
+
+        const failed = welcomeResults.filter((r) => !r.ok);
+        const overallSuccess = failed.length === 0;
+        const partial = failed.length > 0 && failed.length < welcomeResults.length;
 
         return new Response(
           JSON.stringify({
-            success: true,
+            success: overallSuccess,
+            partial,
             all_existed: allExisted,
             skipped_channels: skippedChannels,
             created_channels: createdChannels,
@@ -855,8 +933,13 @@ Deno.serve(async (req) => {
               full_scan: fullScanChannel,
               info: infoChannel,
             },
+            welcome_results: welcomeResults,
+            error: overallSuccess ? undefined : `Failed to post welcome message in ${failed.length}/${welcomeResults.length} channel(s)`,
           }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          {
+            status: overallSuccess ? 200 : (partial ? 207 : 502),
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
         );
       } catch (err: any) {
         return new Response(

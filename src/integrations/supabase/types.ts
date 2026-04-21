@@ -690,6 +690,42 @@ export type Database = {
         }
         Relationships: []
       }
+      server_audit_log: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          error_message: string | null
+          guild_id: string | null
+          id: string
+          server_id: string
+          status: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          error_message?: string | null
+          guild_id?: string | null
+          id?: string
+          server_id: string
+          status: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          error_message?: string | null
+          guild_id?: string | null
+          id?: string
+          server_id?: string
+          status?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       server_favorites: {
         Row: {
           created_at: string
