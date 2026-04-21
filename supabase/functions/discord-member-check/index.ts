@@ -237,12 +237,8 @@ async function applyAutoModeration(opts: {
   return { kicked, banned, roleAssigned };
 }
 
-function _autoModSentinel() {
-  return null;
-    return false;
-  }
-  return false;
-}
+// (auto-moderation block ends above)
+
 
 async function fetchAllMembers(
   guildId: string,
