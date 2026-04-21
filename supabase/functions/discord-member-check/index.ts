@@ -778,6 +778,39 @@ Deno.serve(async (req) => {
       );
     }
 
+    // ── list-channels action ──
+    // Returns text channels (type 0) for a guild, used by the wizard's info-channel selector
+    if (action === "list-channels") {
+      const targetGuildId = body?.guildId;
+      if (!targetGuildId || !DISCORD_BOT_TOKEN) {
+        return new Response(
+          JSON.stringify({ success: false, error: "guildId and bot token required" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      const chRes = await fetchWithRetry(
+        `${DISCORD_API}/guilds/${targetGuildId}/channels`,
+        { headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` } },
+      );
+      if (!chRes.ok) {
+        const errText = await chRes.text();
+        return new Response(
+          JSON.stringify({ success: false, error: `Failed to fetch channels: ${chRes.status} ${errText}` }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      const all = await chRes.json() as Array<{ id: string; name: string; type: number; parent_id: string | null; position: number }>;
+      // Only text channels (type 0) and announcement channels (type 5)
+      const textChannels = all
+        .filter((c) => c.type === 0 || c.type === 5)
+        .sort((a, b) => a.position - b.position)
+        .map((c) => ({ id: c.id, name: c.name, type: c.type, parent_id: c.parent_id }));
+      return new Response(
+        JSON.stringify({ success: true, channels: textChannels }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     // ── fetch-icons action ──
     if (action === "fetch-icons") {
       if (!DISCORD_BOT_TOKEN) {
