@@ -2127,14 +2127,19 @@ const BotSetup = () => {
                   </div>
                 ) : (
                   <>
-                    <div className="space-y-2">
+                    <div className="space-y-2.5">
                       <div className="flex items-center justify-between">
-                        <Label>{t('bot.discord_servers')}</Label>
-                        <span className="text-[11px] text-muted-foreground">{availableGuilds.length} {t('bot.found')}</span>
+                        <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          {t('bot.discord_servers')}
+                        </Label>
+                        <span className="text-[10px] font-mono text-muted-foreground/70">
+                          {availableGuilds.length} {t('bot.found')}
+                        </span>
                       </div>
-                      <div className="space-y-2 max-h-64 overflow-y-auto rounded-lg border border-border/30 bg-secondary/10 p-2">
+                      <div className="space-y-1.5 max-h-72 overflow-y-auto rounded-xl border border-border/40 bg-secondary/10 p-1.5">
                         {availableGuilds.map((guild) => {
                           const isAlreadyAdded = servers.some((server) => server.guild_id === guild.id);
+                          const isSelected = guildId === guild.id;
 
                           return (
                             <button
@@ -2144,44 +2149,52 @@ const BotSetup = () => {
                                 setGuildName(guild.name);
                                 fetchGuildRoles(guild.id);
                               }}
-                              className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${
-                                guildId === guild.id
-                                  ? 'border-primary/40 bg-primary/10'
+                              className={`group w-full flex items-center gap-3 p-2.5 rounded-lg transition-all text-left ring-1 ${
+                                isSelected
+                                  ? 'ring-primary/50 bg-gradient-to-r from-primary/15 to-primary/5 shadow-md shadow-primary/10'
                                   : isAlreadyAdded
-                                    ? 'border-border/30 bg-muted/20 hover:bg-muted/30'
-                                    : 'border-border/30 bg-secondary/20 hover:bg-secondary/40'
+                                    ? 'ring-border/20 bg-muted/10 opacity-70 hover:opacity-100'
+                                    : 'ring-transparent hover:ring-border/40 hover:bg-secondary/30'
                               }`}
                             >
                               {guild.icon ? (
                                 <img
-                                  src={`https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.webp?size=48`}
+                                  src={`https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.webp?size=64`}
                                   alt={guild.name}
-                                  className="w-9 h-9 rounded-lg"
+                                  className={`w-10 h-10 rounded-xl ring-1 transition-all ${
+                                    isSelected ? 'ring-primary/40' : 'ring-border/30 group-hover:ring-border/60'
+                                  }`}
                                 />
                               ) : (
-                                <div className="w-9 h-9 rounded-lg bg-muted/50 flex items-center justify-center text-muted-foreground text-sm font-bold">
-                                  {guild.name[0]}
+                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold transition-all ${
+                                  isSelected
+                                    ? 'bg-gradient-to-br from-primary/30 to-primary/10 text-primary ring-1 ring-primary/30'
+                                    : 'bg-muted/40 text-muted-foreground ring-1 ring-border/30'
+                                }`}>
+                                  {guild.name[0]?.toUpperCase()}
                                 </div>
                               )}
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2">
-                                  <p className="text-sm font-medium text-foreground truncate">{guild.name}</p>
+                                  <p className="text-sm font-semibold text-foreground truncate">{guild.name}</p>
                                   {isAlreadyAdded && (
-                                    <Badge variant="outline" className="text-[10px] border-border/40 bg-card/60 text-muted-foreground">
+                                    <Badge variant="outline" className="text-[9px] h-4 px-1.5 border-border/40 bg-card/60 text-muted-foreground font-normal">
                                       {t('bot.already_added')}
                                     </Badge>
                                   )}
                                 </div>
-                                <p className="text-[10px] text-muted-foreground font-mono">{guild.id}</p>
+                                <p className="text-[10px] text-muted-foreground/60 font-mono truncate">{guild.id}</p>
                               </div>
-                              {guildId === guild.id ? (
-                                <CheckCircle className="w-4 h-4 text-primary shrink-0" />
-                              ) : null}
+                              <div className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center transition-all ${
+                                isSelected ? 'bg-primary text-primary-foreground scale-100' : 'scale-0'
+                              }`}>
+                                <CheckCircle className="w-3.5 h-3.5" />
+                              </div>
                             </button>
                           );
                         })}
                       </div>
-                      <p className="text-[11px] text-muted-foreground">
+                      <p className="text-[10px] text-muted-foreground/60 px-1">
                         {t('bot.all_servers_shown')}
                       </p>
                     </div>
