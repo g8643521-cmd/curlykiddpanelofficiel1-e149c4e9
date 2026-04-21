@@ -704,10 +704,11 @@ const translations: Record<string, Record<Lang, string>> = {
 
   // ── Add Server Wizard ──
   "wizard.title": { en: "Connect Discord Server", da: "Forbind Discord-server" },
-  "wizard.subtitle": { en: "Set up CurlyKidd Bot in 4 simple steps", da: "Opsæt CurlyKidd Bot i 4 enkle trin" },
+  "wizard.subtitle": { en: "Set up CurlyKidd Bot in 5 simple steps", da: "Opsæt CurlyKidd Bot i 5 enkle trin" },
   "wizard.step.server": { en: "Server", da: "Server" },
   "wizard.step.verify": { en: "Verify", da: "Verificér" },
   "wizard.step.channels": { en: "Channels", da: "Kanaler" },
+  "wizard.step.advanced": { en: "Advanced", da: "Avanceret" },
   "wizard.step.confirm": { en: "Confirm", da: "Bekræft" },
   "wizard.next": { en: "Continue", da: "Fortsæt" },
   "wizard.back": { en: "Back", da: "Tilbage" },
@@ -779,6 +780,66 @@ const translations: Record<string, Record<Lang, string>> = {
   "wizard.s4.perm_send_messages": { en: "Send messages — to post alerts and reports", da: "Send beskeder — for at sende alerts og rapporter" },
   "wizard.s4.perm_view_audit": { en: "View audit log — to detect new joins", da: "Se audit log — for at detektere nye joiners" },
   "wizard.s4.perm_manage_webhooks": { en: "Manage webhooks — to deliver real-time alerts", da: "Administrer webhooks — for at levere real-time alerts" },
+
+  // Step 5 — Advanced settings (optional)
+  "wizard.s5.title": { en: "Advanced settings (optional)", da: "Avancerede indstillinger (valgfri)" },
+  "wizard.s5.desc": { en: "Fine-tune how the bot reacts to detected cheaters. All defaults are sensible — skip this step if you're not sure.", da: "Finjustér hvordan botten reagerer på detekterede cheaters. Alle standardværdier er fornuftige — spring over hvis du er i tvivl." },
+  "wizard.s5.skip_hint": { en: "You can change all of this later from server settings.", da: "Du kan ændre alt dette senere via serverindstillinger." },
+
+  // Cheater role section
+  "wizard.s5.role_title": { en: "Cheater role", da: "Cheater-rolle" },
+  "wizard.s5.role_desc": { en: "Automatically tag confirmed cheaters with a custom Discord role for tracking or staff awareness.", da: "Markér automatisk bekræftede cheaters med en brugerdefineret Discord-rolle til tracking eller staff-awareness." },
+  "wizard.s5.role_toggle": { en: "Auto-assign role on detection", da: "Auto-tildel rolle ved detektion" },
+  "wizard.s5.role_picker_label": { en: "Role to assign", da: "Rolle der tildeles" },
+  "wizard.s5.role_picker_placeholder": { en: "Select a role…", da: "Vælg en rolle…" },
+  "wizard.s5.role_picker_none": { en: "— None —", da: "— Ingen —" },
+  "wizard.s5.role_warn_above_bot": { en: "Make sure the bot's role is positioned above this role in Discord, otherwise assignment will fail.", da: "Sørg for at bottens rolle er placeret over denne rolle i Discord, ellers fejler tildelingen." },
+
+  // Auto-moderation section
+  "wizard.s5.mod_title": { en: "Auto-moderation", da: "Auto-moderation" },
+  "wizard.s5.mod_desc": { en: "Automatically take action when a flagged user joins. Choose at most one — kick is reversible, ban is permanent.", da: "Tag automatisk handling når en markeret bruger joiner. Vælg højst én — kick er fortrydeligt, ban er permanent." },
+  "wizard.s5.mod_kick": { en: "Auto-kick cheaters", da: "Auto-kick cheaters" },
+  "wizard.s5.mod_kick_desc": { en: "Removes them from the server. They can rejoin if invited.", da: "Fjerner dem fra serveren. De kan joine igen hvis de inviteres." },
+  "wizard.s5.mod_ban": { en: "Auto-ban cheaters", da: "Auto-ban cheaters" },
+  "wizard.s5.mod_ban_desc": { en: "Permanently bans them. Use with caution.", da: "Banner dem permanent. Brug med forsigtighed." },
+  "wizard.s5.mod_conflict": { en: "Only one auto-moderation action can be active at a time.", da: "Kun én auto-moderation-handling kan være aktiv ad gangen." },
+
+  // Alerts & notifications
+  "wizard.s5.alerts_title": { en: "Alerts & notifications", da: "Alerts & notifikationer" },
+  "wizard.s5.alerts_desc": { en: "Control when alerts fire and who gets notified.", da: "Bestem hvornår alerts udløses og hvem der notificeres." },
+  "wizard.s5.alerts_min_bans": { en: "Minimum bans before alert", da: "Minimum antal bans før alert" },
+  "wizard.s5.alerts_min_bans_help": { en: "Only alert if the user has at least this many recorded cheater-bans.", da: "Alert kun hvis brugeren har mindst dette antal registrerede cheater-bans." },
+  "wizard.s5.alerts_mention": { en: "Mention role on alerts", da: "Mention-rolle ved alerts" },
+  "wizard.s5.alerts_mention_help": { en: "Optional. Pings the selected role whenever a cheater alert is posted.", da: "Valgfri. Pinger den valgte rolle hver gang en cheater-alert sendes." },
+  "wizard.s5.alerts_clean": { en: "Notify on clean joins", da: "Notificér ved rene joins" },
+  "wizard.s5.alerts_clean_desc": { en: "Send a small confirmation when a non-flagged user joins. Adds noise on busy servers.", da: "Send en lille bekræftelse når en ikke-markeret bruger joiner. Skaber støj på travle servere." },
+
+  // Logging & scanning
+  "wizard.s5.log_title": { en: "Logging & scanning", da: "Logging & scanning" },
+  "wizard.s5.log_desc": { en: "Configure what gets logged and how often the bot scans.", da: "Konfigurer hvad der logges og hvor ofte botten scanner." },
+  "wizard.s5.log_all_joins": { en: "Log all joins", da: "Log alle joins" },
+  "wizard.s5.log_all_joins_desc": { en: "Records every member that joins, not just cheaters.", da: "Registrerer hvert medlem der joiner, ikke kun cheaters." },
+  "wizard.s5.scan_interval": { en: "Auto-scan interval", da: "Auto-scan interval" },
+  "wizard.s5.scan_interval_help": { en: "How often the bot re-scans new members. Disabled means only manual scans.", da: "Hvor ofte botten gen-scanner nye medlemmer. Deaktiveret betyder kun manuelle scans." },
+  "wizard.s5.scan_disabled": { en: "Disabled", da: "Deaktiveret" },
+  "wizard.s5.scan_min": { en: "{n} min", da: "{n} min" },
+  "wizard.s5.info_channel": { en: "Info channel", da: "Info-kanal" },
+  "wizard.s5.info_channel_help": { en: "Optional override. Defaults to the auto-created #curlykidd-info channel.", da: "Valgfri override. Standard er den auto-oprettede #curlykidd-info kanal." },
+  "wizard.s5.info_channel_placeholder": { en: "Use default (curlykidd-info)", da: "Brug standard (curlykidd-info)" },
+
+  // Webhook overrides (advanced)
+  "wizard.s5.webhooks_title": { en: "Webhook overrides (advanced)", da: "Webhook overrides (avanceret)" },
+  "wizard.s5.webhooks_desc": { en: "By default the bot creates and manages webhooks for you. Override only if you know what you're doing.", da: "Som standard opretter og administrerer botten webhooks for dig. Override kun hvis du ved hvad du laver." },
+  "wizard.s5.webhooks_toggle": { en: "Use custom webhook URLs", da: "Brug brugerdefinerede webhook URLs" },
+  "wizard.s5.webhooks_auto_label": { en: "Auto-scan webhook URL", da: "Auto-scan webhook URL" },
+  "wizard.s5.webhooks_full_label": { en: "Full-scan webhook URL", da: "Full-scan webhook URL" },
+  "wizard.s5.webhooks_invalid": { en: "Must be a Discord webhook URL", da: "Skal være en Discord webhook-URL" },
+
+  // Section toggles & accordion
+  "wizard.s5.expand": { en: "Expand", da: "Udvid" },
+  "wizard.s5.collapse": { en: "Collapse", da: "Skjul" },
+  "wizard.s5.enabled": { en: "Enabled", da: "Aktiveret" },
+  "wizard.s5.disabled": { en: "Disabled", da: "Deaktiveret" },
 };
 
 const getStoredLang = (): Lang => {
