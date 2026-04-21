@@ -2520,9 +2520,17 @@ const BotSetup = () => {
                 )}
               </div>
             )}
+            </div>
 
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setAddDialogOpen(false)}>{t('bot.cancel')}</Button>
+            {/* Premium sticky footer */}
+            <DialogFooter className="px-6 py-4 border-t border-border/40 bg-secondary/20 backdrop-blur gap-2 sm:gap-2">
+              <Button
+                variant="ghost"
+                onClick={() => setAddDialogOpen(false)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                {t('bot.cancel')}
+              </Button>
               <Button
                 onClick={handleAdd}
                 disabled={
@@ -2532,7 +2540,7 @@ const BotSetup = () => {
                   (addMode === 'auto' && servers.some((server) => server.guild_id === guildId)) ||
                   (addMode === 'auto' && channelsPrivate && selectedRoleIds.length === 0)
                 }
-                className="gap-2"
+                className="gap-2 bg-gradient-to-b from-primary to-primary/85 hover:from-primary hover:to-primary text-primary-foreground shadow-lg shadow-primary/20 ring-1 ring-primary/40"
               >
                 {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                 {!isAdmin && (!ownershipVerified || ownershipVerified.guildId !== guildId)
