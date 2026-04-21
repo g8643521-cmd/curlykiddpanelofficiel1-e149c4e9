@@ -461,6 +461,8 @@ Deno.serve(async (req) => {
     // Creates 3 channels: auto-scan, full-scan, info + webhooks for the first two
     if (action === "create-webhook") {
       const targetGuildId = body?.guildId;
+      const privateChannels: boolean = body?.private_channels !== false; // default true
+      const allowedRoleIds: string[] = Array.isArray(body?.allowed_role_ids) ? body.allowed_role_ids : [];
       if (!targetGuildId) {
         return new Response(
           JSON.stringify({ success: false, error: "guildId is required" }),
@@ -473,6 +475,15 @@ Deno.serve(async (req) => {
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
+
+      // Build permission overwrites: deny @everyone, allow selected roles
+      const VIEW_CHANNEL_PERM = "1024";
+      const permissionOverwrites = privateChannels
+        ? [
+            { id: targetGuildId, type: 0, deny: VIEW_CHANNEL_PERM },
+            ...allowedRoleIds.map((roleId) => ({ id: roleId, type: 0, allow: VIEW_CHANNEL_PERM })),
+          ]
+        : [];
 
       // Fetch existing guild channels
       const channelsRes = await fetchWithRetry(
@@ -488,7 +499,7 @@ Deno.serve(async (req) => {
       }
       const existingChannels = (await channelsRes.json()) as any[];
 
-      // Helper: find or create a text channel
+      // Helper: find or create a text channel (with permission overwrites)
       const skippedChannels: string[] = [];
       const createdChannels: string[] = [];
 
@@ -496,8 +507,22 @@ Deno.serve(async (req) => {
         const existing = existingChannels.find((c: any) => c.type === 0 && c.name === name);
         if (existing) {
           skippedChannels.push(name);
+          // Sync permissions on existing channel too
+          if (privateChannels) {
+            await fetchWithRetry(`${DISCORD_API}/channels/${existing.id}`, {
+              method: "PATCH",
+              headers: {
+                Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ permission_overwrites: permissionOverwrites }),
+            }).catch(() => {});
+          }
           return { id: existing.id, name: existing.name, existed: true };
         }
+
+        const createBody: any = { name, type: 0, topic };
+        if (privateChannels) createBody.permission_overwrites = permissionOverwrites;
 
         const createRes = await fetchWithRetry(
           `${DISCORD_API}/guilds/${targetGuildId}/channels`,
@@ -507,7 +532,7 @@ Deno.serve(async (req) => {
               Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({ name, type: 0, topic }),
+            body: JSON.stringify(createBody),
           },
         );
         if (!createRes.ok) {
