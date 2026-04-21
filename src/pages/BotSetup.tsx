@@ -60,6 +60,7 @@ import MaintenanceBanner from '@/components/MaintenanceBanner';
 import { z } from 'zod';
 import { useAdminStatus } from '@/hooks/useAdminStatus';
 import { useAuthReady } from '@/hooks/useAuthReady';
+import { defaultAdvancedSettings, type AdvancedSettings, type WizardChannel } from '@/components/bot/AdvancedSettingsStep';
 
 // Lazy-load heavy components that aren't needed on initial render
 const ParticleBackground = lazy(() => import('@/components/ParticleBackground'));
@@ -178,9 +179,12 @@ const BotSetup = () => {
   // Channel privacy / role permissions
   const [availableRoles, setAvailableRoles] = useState<{ id: string; name: string; color: number }[]>([]);
   const [isLoadingRoles, setIsLoadingRoles] = useState(false);
+  const [availableChannels, setAvailableChannels] = useState<WizardChannel[]>([]);
+  const [isLoadingChannels, setIsLoadingChannels] = useState(false);
   const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>([]);
   const [channelsPrivate, setChannelsPrivate] = useState(true);
   const [roleSearch, setRoleSearch] = useState('');
+  const [advancedSettings, setAdvancedSettings] = useState<AdvancedSettings>(defaultAdvancedSettings);
 
   // Ownership verification
   const [discordUserId, setDiscordUserId] = useState('');
