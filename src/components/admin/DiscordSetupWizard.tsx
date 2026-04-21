@@ -684,9 +684,14 @@ export default function DiscordSetupWizard({
             <Button
               size="sm"
               onClick={() => setStep(step === "intro" ? "configure" : "review")}
+              disabled={categories.length === 0}
               className="bg-[#5865F2] hover:bg-[#4752C4]"
             >
-              {step === "intro" ? "Configure permissions" : "Review setup"}
+              {step === "intro"
+                ? categories.length === 0
+                  ? "Loading structure..."
+                  : "Configure permissions"
+                : "Review setup"}
               <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
           ) : (
