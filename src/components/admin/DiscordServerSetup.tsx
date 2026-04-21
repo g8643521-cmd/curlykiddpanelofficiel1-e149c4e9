@@ -248,13 +248,12 @@ export default function DiscordServerSetup() {
     await fetchStructurePreview();
   };
 
-  const handleSetupServer = async () => {
+  const handleSetupServer = async (categoryPermissions: Record<string, CategoryPermission>) => {
     if (!selectedGuild) {
       toast.error('Please select a server first');
       return;
     }
 
-    setShowConfirmDialog(false);
     startOperation('setup');
 
     try {
@@ -262,6 +261,7 @@ export default function DiscordServerSetup() {
         body: { 
           action: 'setup_server',
           guild_id: selectedGuild,
+          category_permissions: categoryPermissions,
         },
       });
 
