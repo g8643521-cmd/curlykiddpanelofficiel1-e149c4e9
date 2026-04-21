@@ -258,12 +258,37 @@ const BotSetup = () => {
     setIsVerifyingOwnership(false);
   }, []);
 
+  const fetchGuildRoles = useCallback(async (targetGuildId: string) => {
+    if (!targetGuildId) return;
+    setIsLoadingRoles(true);
+    setAvailableRoles([]);
+    setSelectedRoleIds([]);
+    try {
+      const { data, error } = await supabase.functions.invoke('discord-setup', {
+        body: { action: 'get_guild_roles', guild_id: targetGuildId },
+      });
+      if (!error && data?.success) {
+        setAvailableRoles(data.roles || []);
+      } else {
+        toast.error(data?.error || 'Could not load Discord roles');
+      }
+    } catch (e: any) {
+      toast.error('Could not load Discord roles');
+    } finally {
+      setIsLoadingRoles(false);
+    }
+  }, []);
+
   const openAddDialog = useCallback(() => {
     setAddDialogOpen(true);
     setAddMode('auto');
     setOwnershipVerified(null);
     setOwnershipError(null);
     setDiscordUserId('');
+    setAvailableRoles([]);
+    setSelectedRoleIds([]);
+    setChannelsPrivate(true);
+    setRoleSearch('');
     fetchGuilds();
   }, [fetchGuilds]);
 
