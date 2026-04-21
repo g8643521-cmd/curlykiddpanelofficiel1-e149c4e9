@@ -522,6 +522,43 @@ const BotSetup = () => {
         return;
       }
 
+      // Validate access key (skip for admins if blank)
+      let validatedKeyId: string | null = null;
+      const trimmedKey = accessKey.trim().toUpperCase();
+      if (trimmedKey) {
+        const { data: keyRow, error: keyErr } = await supabase
+          .from('server_creation_keys')
+          .select('id, issued_to, used_at, expires_at')
+          .eq('key_code', trimmedKey)
+          .maybeSingle();
+
+        if (keyErr || !keyRow) {
+          toast.error('Ugyldig access key');
+          setIsSubmitting(false);
+          return;
+        }
+        if (keyRow.used_at) {
+          toast.error('Denne key er allerede brugt');
+          setIsSubmitting(false);
+          return;
+        }
+        if (keyRow.expires_at && new Date(keyRow.expires_at) < new Date()) {
+          toast.error('Denne key er udløbet');
+          setIsSubmitting(false);
+          return;
+        }
+        if (keyRow.issued_to && keyRow.issued_to !== session.session.user.id) {
+          toast.error('Denne key er udstedt til en anden bruger');
+          setIsSubmitting(false);
+          return;
+        }
+        validatedKeyId = keyRow.id;
+      } else if (!isAdmin) {
+        toast.error('Access key er påkrævet');
+        setIsSubmitting(false);
+        return;
+      }
+
       if (!isAdvancedSettingsValid(advancedSettings)) {
         toast.error('Avancerede indstillinger er ikke gyldige endnu');
         setIsSubmitting(false);
