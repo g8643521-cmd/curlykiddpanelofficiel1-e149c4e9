@@ -4,7 +4,7 @@ import {
   Bot, Check, ChevronRight, ChevronLeft, Loader2, Search,
   Server, Shield, ShieldCheck, Hash, Users, Lock, Globe,
   AlertTriangle, ExternalLink, Sparkles, Eye, MessageSquare,
-  ScrollText, Webhook, Settings, Info, X
+  ScrollText, Webhook, Settings, Info, X, Key
 } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -49,6 +49,9 @@ interface AddServerWizardProps {
   setChannelsPrivate: (v: boolean) => void;
   advancedSettings: AdvancedSettings;
   setAdvancedSettings: (settings: AdvancedSettings) => void;
+  // Access key (required for non-admins)
+  accessKey: string;
+  setAccessKey: (v: string) => void;
   // Submit
   isSubmitting: boolean;
   onSubmit: () => void;
@@ -56,8 +59,8 @@ interface AddServerWizardProps {
   inviteUrl: string;
 }
 
-type Step = 0 | 1 | 2 | 3 | 4;
-const STEP_KEYS = ['wizard.step.server', 'wizard.step.verify', 'wizard.step.channels', 'wizard.step.advanced', 'wizard.step.confirm'] as const;
+type Step = 0 | 1 | 2 | 3 | 4 | 5;
+const STEP_KEYS = ['wizard.step.server', 'wizard.step.verify', 'wizard.step.channels', 'wizard.step.advanced', 'Access key', 'wizard.step.confirm'] as const;
 
 export default function AddServerWizard(props: AddServerWizardProps) {
   const { t, lang } = useI18n();
