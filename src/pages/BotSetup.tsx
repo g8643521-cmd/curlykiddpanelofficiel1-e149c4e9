@@ -59,6 +59,7 @@ import AppHeader from '@/components/AppHeader';
 import MaintenanceBanner from '@/components/MaintenanceBanner';
 import { z } from 'zod';
 import { useAdminStatus } from '@/hooks/useAdminStatus';
+import { useCanCreateServer } from '@/hooks/useCanCreateServer';
 import { useAuthReady } from '@/hooks/useAuthReady';
 import { defaultAdvancedSettings, isAdvancedSettingsValid, type AdvancedSettings, type WizardChannel } from '@/components/bot/AdvancedSettingsStep';
 
@@ -87,6 +88,7 @@ const serverSchema = z.object({
 
 const BotSetup = () => {
   const { isAdmin } = useAdminStatus();
+  const { canCreate: canCreateServer } = useCanCreateServer();
   const { isReady, isAuthenticated } = useAuthReady();
   const { t } = useI18n();
   const [servers, setServers] = useState<BotServer[]>([]);
@@ -185,6 +187,7 @@ const BotSetup = () => {
   const [channelsPrivate, setChannelsPrivate] = useState(true);
   const [roleSearch, setRoleSearch] = useState('');
   const [advancedSettings, setAdvancedSettings] = useState<AdvancedSettings>(defaultAdvancedSettings);
+  const [accessKey, setAccessKey] = useState('');
 
   // Ownership verification
   const [discordUserId, setDiscordUserId] = useState('');
@@ -305,6 +308,12 @@ const BotSetup = () => {
   }, []);
 
   const openAddDialog = useCallback(() => {
+    if (!canCreateServer) {
+      toast.error('Du har ikke adgang', {
+        description: 'Du skal have rollen "server_owner" for at oprette servere. Kontakt en admin.',
+      });
+      return;
+    }
     setAddDialogOpen(true);
     setAddMode('auto');
     setOwnershipVerified(null);
@@ -316,8 +325,9 @@ const BotSetup = () => {
     setChannelsPrivate(true);
     setRoleSearch('');
     setAdvancedSettings(defaultAdvancedSettings);
+    setAccessKey('');
     fetchGuilds();
-  }, [fetchGuilds]);
+  }, [fetchGuilds, canCreateServer]);
 
   const fetchLastScanResults = useCallback(async (serverIds: string[]) => {
     if (serverIds.length === 0) {
@@ -2145,6 +2155,8 @@ const BotSetup = () => {
             setChannelsPrivate={setChannelsPrivate}
             advancedSettings={advancedSettings}
             setAdvancedSettings={setAdvancedSettings}
+            accessKey={accessKey}
+            setAccessKey={setAccessKey}
             isSubmitting={isSubmitting}
             onSubmit={handleAdd}
             onRefreshGuilds={fetchGuilds}
