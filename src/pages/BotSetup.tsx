@@ -2261,61 +2261,86 @@ const BotSetup = () => {
                       </div>
                     )}
 
-                    <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-[11px] text-primary flex items-center gap-2">
-                      <Zap className="w-3.5 h-3.5" />
-                      Webhook oprettes automatisk i #cheater-alerts (eller første kanal)
+                    <div className="rounded-xl border border-primary/25 bg-gradient-to-r from-primary/10 to-primary/5 px-3.5 py-2.5 text-[11px] text-primary flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-lg bg-primary/15 ring-1 ring-primary/25 flex items-center justify-center shrink-0">
+                        <Webhook className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="font-medium">Webhook oprettes automatisk i <span className="font-mono">#cheater-alerts</span> (eller første kanal)</span>
                     </div>
 
                     {/* ── Channel Privacy & Roles ── */}
                     {guildId && !servers.some((s) => s.guild_id === guildId) && (
-                      <div className="rounded-xl border border-border/40 bg-card/30 overflow-hidden">
-                        <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border/30 bg-secondary/20">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <Shield className="w-4 h-4 text-primary shrink-0" />
+                      <div className="rounded-xl border border-border/40 bg-card/40 overflow-hidden shadow-sm">
+                        <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border/30 bg-gradient-to-r from-secondary/30 to-secondary/10">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-8 h-8 rounded-lg bg-primary/10 ring-1 ring-primary/25 flex items-center justify-center shrink-0">
+                              <Shield className="w-4 h-4 text-primary" />
+                            </div>
                             <div className="min-w-0">
-                              <p className="text-sm font-semibold text-foreground">Hvem skal kunne se kanalerne?</p>
-                              <p className="text-[10px] text-muted-foreground">
-                                Botten opretter <span className="font-mono">#auto-scan-alerts</span>, <span className="font-mono">#full-scan-alerts</span> og <span className="font-mono">#curlykidd-info</span>
+                              <p className="text-sm font-semibold text-foreground leading-tight">Kanaltilgang</p>
+                              <p className="text-[10px] text-muted-foreground mt-0.5">
+                                <span className="font-mono">#auto-scan-alerts</span> · <span className="font-mono">#full-scan-alerts</span> · <span className="font-mono">#curlykidd-info</span>
                               </p>
                             </div>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => setChannelsPrivate(!channelsPrivate)}
-                            className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider transition-all ${
-                              channelsPrivate
-                                ? 'bg-amber-500/15 text-amber-500 ring-1 ring-amber-500/30'
-                                : 'bg-emerald-500/15 text-emerald-500 ring-1 ring-emerald-500/30'
-                            }`}
-                          >
-                            {channelsPrivate ? '🔒 Privat' : '🌐 Offentlig'}
-                          </button>
+                          <div className="shrink-0 inline-flex items-center p-0.5 rounded-full bg-secondary/40 ring-1 ring-border/40">
+                            <button
+                              type="button"
+                              onClick={() => setChannelsPrivate(true)}
+                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold transition-all ${
+                                channelsPrivate
+                                  ? 'bg-amber-500/20 text-amber-400 ring-1 ring-amber-500/40 shadow-sm'
+                                  : 'text-muted-foreground hover:text-foreground'
+                              }`}
+                            >
+                              🔒 Privat
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setChannelsPrivate(false)}
+                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold transition-all ${
+                                !channelsPrivate
+                                  ? 'bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/40 shadow-sm'
+                                  : 'text-muted-foreground hover:text-foreground'
+                              }`}
+                            >
+                              🌐 Offentlig
+                            </button>
+                          </div>
                         </div>
 
                         {channelsPrivate ? (
-                          <div className="p-3 space-y-2">
-                            <div className="flex items-center gap-2">
+                          <div className="p-3.5 space-y-2.5">
+                            <div className="relative flex items-center gap-2">
+                              <Search className="absolute left-2.5 w-3.5 h-3.5 text-muted-foreground/60 pointer-events-none" />
                               <Input
                                 value={roleSearch}
                                 onChange={(e) => setRoleSearch(e.target.value)}
                                 placeholder="Søg roller..."
-                                className="h-8 text-xs"
+                                className="h-9 text-xs pl-8 bg-secondary/30 border-border/40 focus-visible:ring-primary/30"
                               />
-                              <Badge variant="secondary" className="text-[10px] shrink-0">
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] shrink-0 h-6 px-2 border-primary/30 bg-primary/10 text-primary font-semibold"
+                              >
                                 {selectedRoleIds.length} valgt
                               </Badge>
                             </div>
 
                             {isLoadingRoles ? (
-                              <div className="flex items-center justify-center py-6">
-                                <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                              <div className="flex flex-col items-center justify-center py-8 gap-2">
+                                <Loader2 className="w-5 h-5 animate-spin text-primary/60" />
+                                <p className="text-[11px] text-muted-foreground">Henter roller fra Discord...</p>
                               </div>
                             ) : availableRoles.length === 0 ? (
-                              <p className="text-[11px] text-muted-foreground text-center py-4">
-                                Ingen roller fundet — sørg for at botten er inviteret med korrekte rettigheder
-                              </p>
+                              <div className="text-center py-6 px-4 rounded-lg bg-secondary/20 border border-dashed border-border/40">
+                                <AlertTriangle className="w-5 h-5 text-amber-500/60 mx-auto mb-2" />
+                                <p className="text-[11px] text-muted-foreground">
+                                  Ingen roller fundet — sørg for at botten har korrekte rettigheder
+                                </p>
+                              </div>
                             ) : (
-                              <div className="max-h-44 overflow-y-auto rounded-lg border border-border/30 bg-secondary/10 divide-y divide-border/20">
+                              <div className="max-h-48 overflow-y-auto rounded-lg border border-border/40 bg-secondary/15">
                                 {availableRoles
                                   .filter((r) => !roleSearch.trim() || r.name.toLowerCase().includes(roleSearch.toLowerCase()))
                                   .map((role) => {
@@ -2324,27 +2349,40 @@ const BotSetup = () => {
                                     return (
                                       <label
                                         key={role.id}
-                                        className={`flex items-center gap-2.5 px-3 py-1.5 cursor-pointer transition-colors text-xs ${
-                                          checked ? 'bg-primary/10' : 'hover:bg-secondary/30'
+                                        className={`group flex items-center gap-2.5 px-3 py-2 cursor-pointer transition-all text-xs border-l-2 ${
+                                          checked
+                                            ? 'bg-primary/10 border-l-primary'
+                                            : 'border-l-transparent hover:bg-secondary/40 hover:border-l-border/40'
                                         }`}
                                       >
-                                        <input
-                                          type="checkbox"
-                                          checked={checked}
-                                          onChange={() => {
-                                            setSelectedRoleIds((prev) =>
-                                              prev.includes(role.id)
-                                                ? prev.filter((id) => id !== role.id)
-                                                : [...prev, role.id]
-                                            );
-                                          }}
-                                          className="w-3.5 h-3.5 accent-primary"
-                                        />
+                                        <div className={`relative w-4 h-4 rounded shrink-0 transition-all ${
+                                          checked
+                                            ? 'bg-primary ring-1 ring-primary'
+                                            : 'bg-secondary/50 ring-1 ring-border/50 group-hover:ring-border'
+                                        }`}>
+                                          {checked && (
+                                            <CheckCircle className="absolute inset-0 w-4 h-4 text-primary-foreground" />
+                                          )}
+                                          <input
+                                            type="checkbox"
+                                            checked={checked}
+                                            onChange={() => {
+                                              setSelectedRoleIds((prev) =>
+                                                prev.includes(role.id)
+                                                  ? prev.filter((id) => id !== role.id)
+                                                  : [...prev, role.id]
+                                              );
+                                            }}
+                                            className="absolute inset-0 opacity-0 cursor-pointer"
+                                          />
+                                        </div>
                                         <span
-                                          className="w-2 h-2 rounded-full shrink-0"
+                                          className="w-2.5 h-2.5 rounded-full shrink-0 ring-1 ring-border/30"
                                           style={{ backgroundColor: colorHex || 'hsl(var(--muted-foreground))' }}
                                         />
-                                        <span className="font-medium text-foreground truncate flex-1">@{role.name}</span>
+                                        <span className={`font-medium truncate flex-1 ${checked ? 'text-foreground' : 'text-foreground/80'}`}>
+                                          @{role.name}
+                                        </span>
                                       </label>
                                     );
                                   })}
@@ -2352,12 +2390,26 @@ const BotSetup = () => {
                             )}
 
                             {selectedRoleIds.length === 0 && !isLoadingRoles && availableRoles.length > 0 && (
-                              <p className="text-[10px] text-amber-500 flex items-center gap-1">
-                                <AlertTriangle className="w-3 h-3" />
-                                Vælg mindst én rolle, ellers kan kun server-admins se kanalerne
-                              </p>
+                              <div className="flex items-start gap-2 rounded-lg bg-amber-500/10 border border-amber-500/25 px-3 py-2">
+                                <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+                                <p className="text-[10px] text-amber-400/90 leading-relaxed">
+                                  Vælg mindst én rolle, ellers kan kun server-admins se kanalerne
+                                </p>
+                              </div>
                             )}
                           </div>
+                        ) : (
+                          <div className="p-5 text-center">
+                            <div className="w-10 h-10 rounded-xl bg-emerald-500/15 ring-1 ring-emerald-500/30 flex items-center justify-center mx-auto mb-2">
+                              <Globe className="w-5 h-5 text-emerald-500" />
+                            </div>
+                            <p className="text-sm font-semibold text-foreground">Synlig for alle medlemmer</p>
+                            <p className="text-[10px] text-muted-foreground mt-1 max-w-xs mx-auto">
+                              Alle med adgang til serveren kan se de oprettede kanaler
+                            </p>
+                          </div>
+                        )}
+                      </div>
                         ) : (
                           <div className="p-4 text-center">
                             <Users className="w-5 h-5 text-emerald-500 mx-auto mb-1.5" />
