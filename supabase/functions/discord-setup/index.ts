@@ -129,8 +129,18 @@ async function fetchGuildRoles(token: string, guildId: string) {
     headers: headers(token),
   });
   if (!res.ok) throw new Error(`Failed to fetch roles: ${res.status}`);
-  return (await res.json()) as Array<{ id: string; name: string }>;
+  return (await res.json()) as Array<{
+    id: string;
+    name: string;
+    color: number;
+    position: number;
+    managed: boolean;
+    permissions: string;
+  }>;
 }
+
+// VIEW_CHANNEL = 1024
+const VIEW_CHANNEL = "1024";
 
 // ── Actions ──
 
