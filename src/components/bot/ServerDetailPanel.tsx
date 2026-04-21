@@ -4,7 +4,8 @@ import {
   Clock, Hash, Webhook, BarChart3, Pencil, PowerOff, Radio,
   Calendar, Eye, Settings, UserPlus, Trash2, Crown, Mail,
   ShieldAlert, Ban, UserX, Bell, ScrollText, Timer, AtSign, Zap,
-  ExternalLink, CheckCircle2, XCircle, ChevronRight, Send
+  ExternalLink, CheckCircle2, XCircle, ChevronRight, Send, History,
+  CircleDashed, RefreshCw
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -192,6 +193,38 @@ const ServerDetailPanel = ({
     details: any;
   }>({ open: false, title: '', summary: '', details: null });
 
+  // Welcome stepper state — shown inline in the Overview tab during/after a resend.
+  type StepStatus = 'pending' | 'in_progress' | 'success' | 'fail';
+  type WelcomeStep = {
+    key: string;
+    label: string;
+    status: StepStatus;
+    httpStatus?: number;
+    attempts?: number;
+    rateLimited?: boolean;
+    error?: any;
+  };
+  const WELCOME_STEP_DEFS: Array<{ key: string; label: string }> = [
+    { key: 'auto-scan-alerts', label: '#auto-scan-alerts' },
+    { key: 'full-scan-alerts', label: '#full-scan-alerts' },
+    { key: 'info', label: '#info channel' },
+  ];
+  const [welcomeSteps, setWelcomeSteps] = useState<WelcomeStep[] | null>(null);
+
+  // Server audit log — for the new Audit tab.
+  type AuditRow = {
+    id: string;
+    action: string;
+    status: 'success' | 'fail' | 'partial' | string;
+    created_at: string;
+    user_id: string | null;
+    details: any;
+    error_message: string | null;
+    actor?: { display_name: string | null; email: string | null; avatar_url: string | null } | null;
+  };
+  const [auditRows, setAuditRows] = useState<AuditRow[]>([]);
+  const [auditLoading, setAuditLoading] = useState(false);
+
   const writeAudit = async (
     status: 'success' | 'fail' | 'partial',
     details: any,
@@ -214,9 +247,44 @@ const ServerDetailPanel = ({
     }
   };
 
+  const applyWelcomeResultsToSteps = (welcomeResults: any[]) => {
+    setWelcomeSteps((prev) => {
+      // Start from the predefined order so steps are consistent even if the API returns fewer.
+      const base: WelcomeStep[] = (prev ?? WELCOME_STEP_DEFS.map((s) => ({ ...s, status: 'pending' as StepStatus })))
+        .map((s) => ({ ...s }));
+
+      welcomeResults.forEach((r, idx) => {
+        const matchIdx = base.findIndex(
+          (s) => s.key === r.channel || s.label.replace(/^#/, '') === r.channel,
+        );
+        const target = matchIdx >= 0 ? matchIdx : Math.min(idx, base.length - 1);
+        base[target] = {
+          ...base[target],
+          // Keep the channel name returned by the API for accuracy.
+          label: r.channel ? `#${r.channel}` : base[target].label,
+          status: r.ok ? 'success' : 'fail',
+          httpStatus: r.status,
+          attempts: r.attempts,
+          rateLimited: r.rate_limited,
+          error: r.ok ? undefined : r.error,
+        };
+      });
+
+      // Any remaining 'in_progress' that wasn't reported → mark as fail (didn't run).
+      return base.map((s) => (s.status === 'in_progress' ? { ...s, status: 'fail' } : s));
+    });
+  };
+
   const handleResendWelcome = async () => {
     if (!server) return;
     setIsResendingWelcome(true);
+    // Initialise the stepper: first step is in-progress, rest are pending.
+    setWelcomeSteps(
+      WELCOME_STEP_DEFS.map((s, i) => ({
+        ...s,
+        status: i === 0 ? 'in_progress' : 'pending',
+      })),
+    );
     try {
       const { data, error } = await supabase.functions.invoke('discord-member-check', {
         body: { action: 'create-webhook', guildId: server.guild_id, private_channels: false },
@@ -225,6 +293,14 @@ const ServerDetailPanel = ({
       // Network / function-level error
       if (error) {
         const errMsg = error.message || 'Edge function error';
+        setWelcomeSteps((prev) => {
+          const base: WelcomeStep[] = prev ?? WELCOME_STEP_DEFS.map((s) => ({ ...s, status: 'pending' as StepStatus }));
+          return base.map((s) => ({
+            ...s,
+            status: s.status === 'success' ? ('success' as StepStatus) : ('fail' as StepStatus),
+            error: s.error ?? errMsg,
+          }));
+        });
         setErrorDialog({
           open: true,
           title: 'Resend failed (function error)',
@@ -237,6 +313,7 @@ const ServerDetailPanel = ({
       }
 
       const welcomeResults: any[] = data?.welcome_results ?? [];
+      applyWelcomeResultsToSteps(welcomeResults);
       const failed = welcomeResults.filter((r) => !r.ok);
 
       if (data?.success === false || failed.length > 0) {
@@ -260,6 +337,14 @@ const ServerDetailPanel = ({
       toast.success('Welcome messages resent to Discord');
     } catch (e: any) {
       const errMsg = e?.message ?? String(e);
+      setWelcomeSteps((prev) => {
+        const base: WelcomeStep[] = prev ?? WELCOME_STEP_DEFS.map((s) => ({ ...s, status: 'pending' as StepStatus }));
+        return base.map((s) => ({
+          ...s,
+          status: s.status === 'success' ? ('success' as StepStatus) : ('fail' as StepStatus),
+          error: s.error ?? errMsg,
+        }));
+      });
       setErrorDialog({
         open: true,
         title: 'Resend failed (unexpected)',
@@ -270,8 +355,43 @@ const ServerDetailPanel = ({
       toast.error('Resend failed — see details');
     } finally {
       setIsResendingWelcome(false);
+      // After a completed resend, refresh the audit tab in the background.
+      fetchAudit();
     }
   };
+
+  const fetchAudit = useCallback(async () => {
+    if (!server) return;
+    setAuditLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('server_audit_log')
+        .select('id, action, status, created_at, user_id, details, error_message')
+        .eq('server_id', server.id)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error) throw error;
+      const rows = (data ?? []) as AuditRow[];
+
+      const userIds = [...new Set(rows.map((r) => r.user_id).filter(Boolean) as string[])];
+      let actorMap = new Map<string, { display_name: string | null; email: string | null; avatar_url: string | null }>();
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, display_name, email, avatar_url')
+          .in('user_id', userIds);
+        actorMap = new Map((profiles || []).map((p: any) => [p.user_id, p]));
+      }
+      setAuditRows(rows.map((r) => ({ ...r, actor: r.user_id ? actorMap.get(r.user_id) ?? null : null })));
+    } catch (e) {
+      console.error('Failed to load audit log:', e);
+      setAuditRows([]);
+    } finally {
+      setAuditLoading(false);
+    }
+  }, [server?.id]);
+
 
   const [settings, setSettings] = useState<BotServerSettings | null>(null);
   const [settingsLoading, setSettingsLoading] = useState(false);
@@ -326,6 +446,9 @@ const ServerDetailPanel = ({
   useEffect(() => {
     if (activeTab === 'settings' && server) {
       fetchDiscordRoles();
+    }
+    if (activeTab === 'audit' && server) {
+      fetchAudit();
     }
   }, [activeTab, server?.id]);
 
@@ -523,6 +646,7 @@ const ServerDetailPanel = ({
               {[
                 { value: 'overview', icon: BarChart3, label: t('admin.overview') },
                 { value: 'access', icon: Users, label: t('share.shared_with'), count: shares.length || undefined },
+                { value: 'audit', icon: History, label: 'Audit' },
                 { value: 'settings', icon: Settings, label: t('nav.settings_label') },
               ].map(tab => (
                 <TabsTrigger
@@ -623,6 +747,90 @@ const ServerDetailPanel = ({
               )}
 
               {/* Action buttons — clear hierarchy */}
+              {/* Resend welcome — live progress stepper */}
+              {welcomeSteps && (
+                <div className="rounded-xl border border-border/15 bg-card/20 overflow-hidden">
+                  <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/10">
+                    <div className="flex items-center gap-2">
+                      <Send className="w-3.5 h-3.5 text-primary" />
+                      <span className="text-[12px] font-semibold text-foreground">Resend welcome progress</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {(() => {
+                        const ok = welcomeSteps.filter((s) => s.status === 'success').length;
+                        const total = welcomeSteps.length;
+                        return (
+                          <span className="text-[10px] font-mono text-muted-foreground/60 tabular-nums">{ok}/{total}</span>
+                        );
+                      })()}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 text-muted-foreground/50 hover:text-foreground"
+                        onClick={() => setWelcomeSteps(null)}
+                        disabled={isResendingWelcome}
+                        aria-label="Clear progress"
+                      >
+                        <XCircle className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                  <ol className="divide-y divide-border/10">
+                    {welcomeSteps.map((step, i) => {
+                      const Icon =
+                        step.status === 'success' ? CheckCircle2
+                          : step.status === 'fail' ? XCircle
+                          : step.status === 'in_progress' ? Loader2
+                          : CircleDashed;
+                      const tone =
+                        step.status === 'success' ? 'text-emerald-400'
+                          : step.status === 'fail' ? 'text-destructive'
+                          : step.status === 'in_progress' ? 'text-primary'
+                          : 'text-muted-foreground/40';
+                      return (
+                        <li key={step.key} className="flex items-start gap-3 px-4 py-2.5">
+                          <div className="flex flex-col items-center pt-0.5">
+                            <Icon className={`w-4 h-4 ${tone} ${step.status === 'in_progress' ? 'animate-spin' : ''}`} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-[10px] font-mono text-muted-foreground/40">{i + 1}.</span>
+                              <span className="text-[12px] font-semibold text-foreground truncate">{step.label}</span>
+                              {step.status === 'in_progress' && (
+                                <Badge variant="outline" className="text-[9px] h-[16px] px-1.5 border-primary/30 text-primary">posting…</Badge>
+                              )}
+                              {step.status === 'pending' && (
+                                <Badge variant="outline" className="text-[9px] h-[16px] px-1.5 border-border/30 text-muted-foreground/60">queued</Badge>
+                              )}
+                              {step.status === 'success' && (
+                                <Badge variant="outline" className="text-[9px] h-[16px] px-1.5 border-emerald-500/30 text-emerald-400">sent</Badge>
+                              )}
+                              {step.status === 'fail' && (
+                                <Badge variant="outline" className="text-[9px] h-[16px] px-1.5 border-destructive/30 text-destructive">failed</Badge>
+                              )}
+                              {typeof step.httpStatus === 'number' && (
+                                <Badge variant="outline" className="text-[9px] h-[16px] px-1.5">HTTP {step.httpStatus}</Badge>
+                              )}
+                              {typeof step.attempts === 'number' && step.attempts > 1 && (
+                                <Badge variant="outline" className="text-[9px] h-[16px] px-1.5">{step.attempts} attempts</Badge>
+                              )}
+                              {step.rateLimited && (
+                                <Badge variant="outline" className="text-[9px] h-[16px] px-1.5 border-amber-500/30 text-amber-400">rate-limited</Badge>
+                              )}
+                            </div>
+                            {step.status === 'fail' && step.error && (
+                              <pre className="mt-1.5 text-[10px] text-muted-foreground/80 bg-background/60 rounded p-2 overflow-x-auto whitespace-pre-wrap break-words">
+                                {typeof step.error === 'string' ? step.error : JSON.stringify(step.error, null, 2)}
+                              </pre>
+                            )}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                </div>
+              )}
+
               <div className="flex items-center gap-2 pt-1">
                 <Button variant="outline" size="sm" className="gap-1.5 h-10 text-xs border-border/20 hover:border-border/40 px-4" onClick={() => { onClose(); onEdit(srv); }}>
                   <Pencil className="w-3.5 h-3.5" /> {t('bot.edit_server')}
@@ -640,6 +848,115 @@ const ServerDetailPanel = ({
                   {isResendingWelcome ? 'Sending…' : 'Resend welcome'}
                 </Button>
               </div>
+            </TabsContent>
+
+            {/* ── Audit Tab ── */}
+            <TabsContent value="audit" className="space-y-3 mt-0">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <History className="w-4 h-4 text-primary" />
+                  <span className="text-[12px] font-semibold text-foreground">Server audit log</span>
+                  <span className="text-[10px] font-mono text-muted-foreground/40">{auditRows.length} entries</span>
+                </div>
+                <Button variant="ghost" size="sm" onClick={fetchAudit} disabled={auditLoading} className="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground gap-1.5">
+                  {auditLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                  Refresh
+                </Button>
+              </div>
+
+              {auditLoading ? (
+                <div className="flex flex-col items-center py-10 gap-2">
+                  <Loader2 className="w-5 h-5 animate-spin text-primary/60" />
+                  <span className="text-[11px] text-muted-foreground/50">{t('common.loading')}</span>
+                </div>
+              ) : auditRows.length === 0 ? (
+                <div className="flex flex-col items-center py-10 gap-2">
+                  <div className="w-12 h-12 rounded-full bg-muted/20 flex items-center justify-center">
+                    <History className="w-5 h-5 text-muted-foreground/30" />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground/50 text-center max-w-[240px]">
+                    No audit entries yet. Actions like “Resend welcome” will appear here.
+                  </p>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-border/15 bg-card/15 divide-y divide-border/10 overflow-hidden">
+                  {auditRows.map((row) => {
+                    const tone =
+                      row.status === 'success' ? 'border-emerald-500/30 text-emerald-400'
+                        : row.status === 'partial' ? 'border-amber-500/30 text-amber-400'
+                        : 'border-destructive/30 text-destructive';
+                    const Icon =
+                      row.status === 'success' ? CheckCircle2
+                        : row.status === 'partial' ? AlertTriangle
+                        : XCircle;
+                    const actorLabel = row.actor?.display_name || row.actor?.email || (row.user_id ? row.user_id.slice(0, 8) + '…' : 'system');
+                    return (
+                      <details key={row.id} className="group">
+                        <summary className="list-none cursor-pointer flex items-start gap-3 px-3.5 py-2.5 hover:bg-muted/10 transition-colors">
+                          <Icon className={`w-4 h-4 mt-0.5 shrink-0 ${
+                            row.status === 'success' ? 'text-emerald-400'
+                              : row.status === 'partial' ? 'text-amber-400'
+                              : 'text-destructive'
+                          }`} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-[12px] font-semibold text-foreground">{row.action.replace(/_/g, ' ')}</span>
+                              <Badge variant="outline" className={`text-[9px] h-[16px] px-1.5 ${tone}`}>{row.status}</Badge>
+                            </div>
+                            <div className="flex items-center gap-2 mt-0.5 text-[10px] text-muted-foreground/60">
+                              <Clock className="w-3 h-3" />
+                              <span>{new Date(row.created_at).toLocaleString()}</span>
+                              <span className="text-muted-foreground/30">•</span>
+                              <Users className="w-3 h-3" />
+                              <span className="truncate">{actorLabel}</span>
+                            </div>
+                            {row.error_message && (
+                              <p className="mt-1 text-[10px] text-destructive/80 truncate">{row.error_message}</p>
+                            )}
+                          </div>
+                          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/30 mt-1 shrink-0 transition-transform group-open:rotate-90" />
+                        </summary>
+                        <div className="px-3.5 pb-3 pt-1 space-y-2 bg-background/40">
+                          {Array.isArray(row.details?.welcome_results) && row.details.welcome_results.length > 0 && (
+                            <div className="space-y-1.5">
+                              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">
+                                Per-channel results
+                              </p>
+                              <div className="rounded-lg border border-border/15 divide-y divide-border/10 overflow-hidden">
+                                {row.details.welcome_results.map((r: any) => (
+                                  <div key={r.channel_id} className="flex items-start gap-2 px-2.5 py-1.5">
+                                    {r.ok
+                                      ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 mt-0.5 shrink-0" />
+                                      : <XCircle className="w-3.5 h-3.5 text-destructive mt-0.5 shrink-0" />}
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-1.5 flex-wrap">
+                                        <span className="text-[11px] font-semibold text-foreground">#{r.channel}</span>
+                                        <Badge variant="outline" className="text-[9px] h-[15px] px-1.5">HTTP {r.status || '—'}</Badge>
+                                        {r.attempts > 1 && (
+                                          <Badge variant="outline" className="text-[9px] h-[15px] px-1.5">{r.attempts} attempts</Badge>
+                                        )}
+                                        {r.rate_limited && (
+                                          <Badge variant="outline" className="text-[9px] h-[15px] px-1.5 border-amber-500/30 text-amber-400">rate-limited</Badge>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          <div className="space-y-1.5">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">Raw details</p>
+                            <pre className="text-[10px] text-muted-foreground/80 bg-card/40 border border-border/20 rounded-lg p-2 overflow-x-auto whitespace-pre-wrap break-words max-h-[240px]">
+                              {JSON.stringify(row.details, null, 2)}
+                            </pre>
+                          </div>
+                        </div>
+                      </details>
+                    );
+                  })}
+                </div>
+              )}
             </TabsContent>
 
             {/* ── Access Tab ── */}
