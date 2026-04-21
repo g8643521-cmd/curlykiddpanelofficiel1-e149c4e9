@@ -626,8 +626,8 @@ Deno.serve(async (req) => {
           },
         ];
 
-        // Only post welcome messages if channels were newly created
-        if (!allExisted) {
+        // Always post welcome messages so users see them after (re)adding the server
+        {
         // ── Auto-Scan channel message ──
         await fetchWithRetry(
           `${DISCORD_API}/channels/${autoScanChannel.id}/messages`,
