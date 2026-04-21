@@ -4,7 +4,7 @@ import {
   Bot, Check, ChevronRight, ChevronLeft, Loader2, Search,
   Server, Shield, ShieldCheck, Hash, Users, Lock, Globe,
   AlertTriangle, ExternalLink, Sparkles, Eye, MessageSquare,
-  ScrollText, Webhook, Settings, Info, X
+  ScrollText, Webhook, Settings, Info, X, Key
 } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -49,6 +49,9 @@ interface AddServerWizardProps {
   setChannelsPrivate: (v: boolean) => void;
   advancedSettings: AdvancedSettings;
   setAdvancedSettings: (settings: AdvancedSettings) => void;
+  // Access key (required for non-admins)
+  accessKey: string;
+  setAccessKey: (v: string) => void;
   // Submit
   isSubmitting: boolean;
   onSubmit: () => void;
@@ -56,8 +59,8 @@ interface AddServerWizardProps {
   inviteUrl: string;
 }
 
-type Step = 0 | 1 | 2 | 3 | 4;
-const STEP_KEYS = ['wizard.step.server', 'wizard.step.verify', 'wizard.step.channels', 'wizard.step.advanced', 'wizard.step.confirm'] as const;
+type Step = 0 | 1 | 2 | 3 | 4 | 5;
+const STEP_KEYS = ['wizard.step.server', 'wizard.step.verify', 'wizard.step.channels', 'wizard.step.advanced', 'Access key', 'wizard.step.confirm'] as const;
 
 export default function AddServerWizard(props: AddServerWizardProps) {
   const { t, lang } = useI18n();
@@ -96,10 +99,13 @@ export default function AddServerWizard(props: AddServerWizardProps) {
   const canPassStep1 = props.isAdmin || isVerified;
   const canPassStep2 = !props.channelsPrivate || props.selectedRoleIds.length > 0;
   const canPassStep3 = isAdvancedSettingsValid(props.advancedSettings);
-  const canFinish = canPassStep0 && canPassStep1 && canPassStep2 && canPassStep3;
+  // Access key step (step 4): always shown. Admins may leave blank, others must enter one.
+  const accessKeyTrimmed = props.accessKey.trim();
+  const canPassStep4 = props.isAdmin || /^CKP-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/i.test(accessKeyTrimmed);
+  const canFinish = canPassStep0 && canPassStep1 && canPassStep2 && canPassStep3 && canPassStep4;
 
-  // Step 1 is auto-skipped when admin
-  const visibleSteps: Step[] = props.isAdmin ? [0, 2, 3, 4] : [0, 1, 2, 3, 4];
+  // Step 1 (verify) is auto-skipped when admin. Access key step is always visible.
+  const visibleSteps: Step[] = props.isAdmin ? [0, 2, 3, 4, 5] : [0, 1, 2, 3, 4, 5];
   const currentVisibleIndex = visibleSteps.indexOf(step);
   const handleNext = () => {
     const next = visibleSteps[currentVisibleIndex + 1];
@@ -115,6 +121,7 @@ export default function AddServerWizard(props: AddServerWizardProps) {
     step === 1 ? canPassStep1 :
     step === 2 ? canPassStep2 :
     step === 3 ? canPassStep3 :
+    step === 4 ? canPassStep4 :
     true;
 
   const fmt = (key: string, vars: Record<string, string | number> = {}) => {
@@ -177,7 +184,7 @@ export default function AddServerWizard(props: AddServerWizardProps) {
                         isComplete && 'text-foreground/80',
                         !isActive && !isComplete && 'text-muted-foreground'
                       )}>
-                        {t(key)}
+                        {key.includes('.') ? t(key) : key}
                       </span>
                     </div>
                     {idx < STEP_KEYS.length - 1 && !(props.isAdmin && idx === 0) && (
@@ -609,8 +616,52 @@ export default function AddServerWizard(props: AddServerWizardProps) {
                 />
               )}
 
-              {/* ═══ STEP 5 — Confirm ═══ */}
+              {/* ═══ STEP 5 — Access Key ═══ */}
               {step === 4 && (
+                <div className="space-y-5">
+                  <div>
+                    <h3 className="text-lg font-semibold tracking-tight text-foreground">Access key</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Enter the personal one-time key issued to you by an administrator. Each key can only be used once.
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-border/40 bg-card/40 p-4 space-y-3">
+                    <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Key code
+                    </label>
+                    <div className="relative">
+                      <Key className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/50" />
+                      <Input
+                        value={props.accessKey}
+                        onChange={(e) => props.setAccessKey(e.target.value.toUpperCase())}
+                        placeholder="CKP-XXXX-XXXX-XXXX"
+                        className="h-11 pl-10 text-sm font-mono tracking-wider bg-secondary/30 border-border/40"
+                      />
+                    </div>
+                    {props.isAdmin && (
+                      <p className="text-[11px] text-muted-foreground/70 inline-flex items-center gap-1.5">
+                        <ShieldCheck className="w-3 h-3 text-primary" />
+                        You're an admin — the key is optional but recommended.
+                      </p>
+                    )}
+                    {!props.isAdmin && !canPassStep4 && accessKeyTrimmed.length > 0 && (
+                      <p className="text-[11px] text-destructive/80 inline-flex items-center gap-1.5">
+                        <AlertTriangle className="w-3 h-3" />
+                        Invalid key format — should look like CKP-XXXX-XXXX-XXXX.
+                      </p>
+                    )}
+                    {!props.isAdmin && (
+                      <p className="text-[11px] text-muted-foreground/70">
+                        Don't have a key? Contact an administrator to issue one for your account.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ═══ STEP 6 — Confirm ═══ */}
+              {step === 5 && (
                 <div className="space-y-5">
                   <div>
                     <h3 className="text-lg font-semibold tracking-tight text-foreground">{t('wizard.s4.title')}</h3>
@@ -728,7 +779,7 @@ export default function AddServerWizard(props: AddServerWizardProps) {
             )}
           </Button>
 
-          {step === 4 ? (
+          {step === 5 ? (
             <Button
               onClick={props.onSubmit}
               disabled={props.isSubmitting || !canFinish}

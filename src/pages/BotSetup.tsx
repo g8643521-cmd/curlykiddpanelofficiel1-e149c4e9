@@ -59,6 +59,7 @@ import AppHeader from '@/components/AppHeader';
 import MaintenanceBanner from '@/components/MaintenanceBanner';
 import { z } from 'zod';
 import { useAdminStatus } from '@/hooks/useAdminStatus';
+import { useCanCreateServer } from '@/hooks/useCanCreateServer';
 import { useAuthReady } from '@/hooks/useAuthReady';
 import { defaultAdvancedSettings, isAdvancedSettingsValid, type AdvancedSettings, type WizardChannel } from '@/components/bot/AdvancedSettingsStep';
 
@@ -87,6 +88,7 @@ const serverSchema = z.object({
 
 const BotSetup = () => {
   const { isAdmin } = useAdminStatus();
+  const { canCreate: canCreateServer } = useCanCreateServer();
   const { isReady, isAuthenticated } = useAuthReady();
   const { t } = useI18n();
   const [servers, setServers] = useState<BotServer[]>([]);
@@ -185,6 +187,7 @@ const BotSetup = () => {
   const [channelsPrivate, setChannelsPrivate] = useState(true);
   const [roleSearch, setRoleSearch] = useState('');
   const [advancedSettings, setAdvancedSettings] = useState<AdvancedSettings>(defaultAdvancedSettings);
+  const [accessKey, setAccessKey] = useState('');
 
   // Ownership verification
   const [discordUserId, setDiscordUserId] = useState('');
@@ -305,6 +308,12 @@ const BotSetup = () => {
   }, []);
 
   const openAddDialog = useCallback(() => {
+    if (!canCreateServer) {
+      toast.error('Du har ikke adgang', {
+        description: 'Du skal have rollen "server_owner" for at oprette servere. Kontakt en admin.',
+      });
+      return;
+    }
     setAddDialogOpen(true);
     setAddMode('auto');
     setOwnershipVerified(null);
@@ -316,8 +325,9 @@ const BotSetup = () => {
     setChannelsPrivate(true);
     setRoleSearch('');
     setAdvancedSettings(defaultAdvancedSettings);
+    setAccessKey('');
     fetchGuilds();
-  }, [fetchGuilds]);
+  }, [fetchGuilds, canCreateServer]);
 
   const fetchLastScanResults = useCallback(async (serverIds: string[]) => {
     if (serverIds.length === 0) {
@@ -508,6 +518,43 @@ const BotSetup = () => {
       const { data: session } = await supabase.auth.getSession();
       if (!session?.session?.user) {
         toast.error('Please log in');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Validate access key (skip for admins if blank)
+      let validatedKeyId: string | null = null;
+      const trimmedKey = accessKey.trim().toUpperCase();
+      if (trimmedKey) {
+        const { data: keyRow, error: keyErr } = await supabase
+          .from('server_creation_keys')
+          .select('id, issued_to, used_at, expires_at')
+          .eq('key_code', trimmedKey)
+          .maybeSingle();
+
+        if (keyErr || !keyRow) {
+          toast.error('Ugyldig access key');
+          setIsSubmitting(false);
+          return;
+        }
+        if (keyRow.used_at) {
+          toast.error('Denne key er allerede brugt');
+          setIsSubmitting(false);
+          return;
+        }
+        if (keyRow.expires_at && new Date(keyRow.expires_at) < new Date()) {
+          toast.error('Denne key er udløbet');
+          setIsSubmitting(false);
+          return;
+        }
+        if (keyRow.issued_to && keyRow.issued_to !== session.session.user.id) {
+          toast.error('Denne key er udstedt til en anden bruger');
+          setIsSubmitting(false);
+          return;
+        }
+        validatedKeyId = keyRow.id;
+      } else if (!isAdmin) {
+        toast.error('Access key er påkrævet');
         setIsSubmitting(false);
         return;
       }
@@ -2145,6 +2192,8 @@ const BotSetup = () => {
             setChannelsPrivate={setChannelsPrivate}
             advancedSettings={advancedSettings}
             setAdvancedSettings={setAdvancedSettings}
+            accessKey={accessKey}
+            setAccessKey={setAccessKey}
             isSubmitting={isSubmitting}
             onSubmit={handleAdd}
             onRefreshGuilds={fetchGuilds}

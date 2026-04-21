@@ -726,6 +726,48 @@ export type Database = {
         }
         Relationships: []
       }
+      server_creation_keys: {
+        Row: {
+          created_at: string
+          created_by: string
+          expires_at: string | null
+          id: string
+          issued_to: string | null
+          issued_to_email: string | null
+          key_code: string
+          note: string | null
+          used_at: string | null
+          used_by: string | null
+          used_for_server_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          expires_at?: string | null
+          id?: string
+          issued_to?: string | null
+          issued_to_email?: string | null
+          key_code: string
+          note?: string | null
+          used_at?: string | null
+          used_by?: string | null
+          used_for_server_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          expires_at?: string | null
+          id?: string
+          issued_to?: string | null
+          issued_to_email?: string | null
+          key_code?: string
+          note?: string | null
+          used_at?: string | null
+          used_by?: string | null
+          used_for_server_id?: string | null
+        }
+        Relationships: []
+      }
       server_favorites: {
         Row: {
           created_at: string
@@ -749,6 +791,44 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      server_members: {
+        Row: {
+          accepted_at: string | null
+          id: string
+          invited_at: string
+          invited_by: string | null
+          role: string
+          server_id: string
+          user_id: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          id?: string
+          invited_at?: string
+          invited_by?: string | null
+          role?: string
+          server_id: string
+          user_id: string
+        }
+        Update: {
+          accepted_at?: string | null
+          id?: string
+          invited_at?: string
+          invited_by?: string | null
+          role?: string
+          server_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "server_members_server_id_fkey"
+            columns: ["server_id"]
+            isOneToOne: false
+            referencedRelation: "discord_bot_servers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       server_shares: {
         Row: {
@@ -960,6 +1040,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_server_member: {
+        Args: { _min_role?: string; _server_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_server_owner: {
+        Args: { _server_id: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role:
@@ -969,6 +1057,7 @@ export type Database = {
         | "owner"
         | "mod_creator"
         | "integrations_manager"
+        | "server_owner"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1103,6 +1192,7 @@ export const Constants = {
         "owner",
         "mod_creator",
         "integrations_manager",
+        "server_owner",
       ],
     },
   },
