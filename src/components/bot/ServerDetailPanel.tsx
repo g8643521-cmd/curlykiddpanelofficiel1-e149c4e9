@@ -4,7 +4,7 @@ import {
   Clock, Hash, Webhook, BarChart3, Pencil, PowerOff, Radio,
   Calendar, Eye, Settings, UserPlus, Trash2, Crown, Mail,
   ShieldAlert, Ban, UserX, Bell, ScrollText, Timer, AtSign, Zap,
-  ExternalLink, CheckCircle2, XCircle, ChevronRight
+  ExternalLink, CheckCircle2, XCircle, ChevronRight, Send
 } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -184,6 +184,31 @@ const ServerDetailPanel = ({
   const [invitePermission, setInvitePermission] = useState<'view' | 'manage'>('view');
   const [isInviting, setIsInviting] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
+  const [isResendingWelcome, setIsResendingWelcome] = useState(false);
+
+  const handleResendWelcome = async () => {
+    if (!server) return;
+    setIsResendingWelcome(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('discord-member-check', {
+        body: { action: 'create-webhook', guildId: server.guild_id, private_channels: false },
+      });
+      if (error) {
+        toast.error(`Resend failed: ${error.message}`);
+        console.error('Resend welcome error:', error);
+      } else if (data?.success === false) {
+        toast.error(`Resend failed: ${data.error ?? 'Unknown error'}`);
+        console.error('Resend welcome error:', data);
+      } else {
+        toast.success('Welcome messages resent to Discord');
+      }
+    } catch (e: any) {
+      toast.error(`Resend failed: ${e?.message ?? e}`);
+      console.error(e);
+    } finally {
+      setIsResendingWelcome(false);
+    }
+  };
 
   const [settings, setSettings] = useState<BotServerSettings | null>(null);
   const [settingsLoading, setSettingsLoading] = useState(false);
@@ -546,6 +571,10 @@ const ServerDetailPanel = ({
                 <Button variant="ghost" size="sm" className="gap-1.5 h-10 text-xs text-muted-foreground hover:text-foreground px-3" onClick={() => onTestWebhook(srv)} disabled={isTesting === srv.id}>
                   {isTesting === srv.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Webhook className="w-3.5 h-3.5" />}
                   {isTesting === srv.id ? 'Testing…' : t('bot.test_webhook')}
+                </Button>
+                <Button variant="outline" size="sm" className="gap-1.5 h-10 text-xs border-border/20 hover:border-border/40 px-3" onClick={handleResendWelcome} disabled={isResendingWelcome}>
+                  {isResendingWelcome ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                  {isResendingWelcome ? 'Sending…' : 'Resend welcome'}
                 </Button>
               </div>
             </TabsContent>
