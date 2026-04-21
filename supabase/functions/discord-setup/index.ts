@@ -175,7 +175,16 @@ async function getStructurePreview() {
   };
 }
 
-async function setupServer(token: string, guildId: string) {
+type CategoryPermission = {
+  private: boolean;
+  allowed_role_ids: string[];
+};
+
+async function setupServer(
+  token: string,
+  guildId: string,
+  categoryPermissions: Record<string, CategoryPermission> = {},
+) {
   const logs: string[] = [];
 
   // ── 1. Check existing roles ──
@@ -231,7 +240,7 @@ async function setupServer(token: string, guildId: string) {
 
   logs.push("🔍 Checking existing channels...");
 
-  // Staff role IDs for permissions
+  // Default staff role IDs (fallback for staffOnly categories without override)
   const staffRoleIds = ["Owner", "Admin", "Moderator", "Support"]
     .map((n) => createdRoleIds[n])
     .filter(Boolean);
@@ -240,31 +249,62 @@ async function setupServer(token: string, guildId: string) {
     const catNameLower = category.name.toLowerCase();
     let categoryId: string | null = null;
 
+    // Resolve permission settings: explicit override > staffOnly default > public
+    const override = categoryPermissions[category.name];
+    let isPrivate = false;
+    let allowedRoleIds: string[] = [];
+
+    if (override) {
+      isPrivate = override.private;
+      allowedRoleIds = override.allowed_role_ids ?? [];
+    } else if ((category as any).staffOnly) {
+      isPrivate = true;
+      allowedRoleIds = staffRoleIds;
+    }
+
+    // Build permission overwrites for private categories
+    const permissionOverwrites: any[] = [];
+    if (isPrivate) {
+      // Deny VIEW_CHANNEL for @everyone (the @everyone role id == guild id)
+      permissionOverwrites.push({
+        id: guildId,
+        type: 0,
+        deny: VIEW_CHANNEL,
+      });
+      for (const roleId of allowedRoleIds) {
+        permissionOverwrites.push({
+          id: roleId,
+          type: 0,
+          allow: VIEW_CHANNEL,
+        });
+      }
+    }
+
     if (existingCategoryNames.has(catNameLower)) {
       const existing = existingChannels.find(
         (c) => c.type === 4 && c.name.toLowerCase() === catNameLower
       );
       categoryId = existing?.id ?? null;
       logs.push(`⏭️ Category "${category.name}" already exists — skipping creation`);
-    } else {
-      // Build permission overwrites for staff-only categories
-      const permissionOverwrites: any[] = [];
-      if ((category as any).staffOnly) {
-        // Deny @everyone
-        permissionOverwrites.push({
-          id: guildId,
-          type: 0,
-          deny: "1024",
-        });
-        for (const roleId of staffRoleIds) {
-          permissionOverwrites.push({
-            id: roleId,
-            type: 0,
-            allow: "1024",
+
+      // Sync permissions on existing category if user requested privacy
+      if (isPrivate && categoryId) {
+        try {
+          const patchRes = await fetch(`${DISCORD_API}/channels/${categoryId}`, {
+            method: "PATCH",
+            headers: headers(token),
+            body: JSON.stringify({ permission_overwrites: permissionOverwrites }),
           });
+          if (patchRes.ok) {
+            logs.push(`🔒 Updated permissions for "${category.name}" (${allowedRoleIds.length} roles allowed)`);
+          } else {
+            logs.push(`⚠️ Could not update permissions for "${category.name}" (${patchRes.status})`);
+          }
+        } catch (e) {
+          logs.push(`⚠️ Permission sync failed for "${category.name}": ${(e as Error).message}`);
         }
       }
-
+    } else {
       try {
         const res = await fetch(`${DISCORD_API}/guilds/${guildId}/channels`, {
           method: "POST",
@@ -278,7 +318,11 @@ async function setupServer(token: string, guildId: string) {
         if (res.ok) {
           const created = (await res.json()) as any;
           categoryId = created.id;
-          logs.push(`✅ Created category: ${category.name}`);
+          if (isPrivate) {
+            logs.push(`🔒 Created PRIVATE category: ${category.name} (${allowedRoleIds.length} roles allowed)`);
+          } else {
+            logs.push(`✅ Created category: ${category.name}`);
+          }
         } else {
           logs.push(`❌ Failed to create category: ${category.name} (${res.status})`);
           continue;
@@ -289,7 +333,7 @@ async function setupServer(token: string, guildId: string) {
       }
     }
 
-    // Now create channels in this category
+    // Channels inherit category permissions automatically (synced)
     const existingInCategory = existingChannelsByParent.get(categoryId) ?? new Set();
 
     for (const channel of category.channels) {
@@ -311,7 +355,7 @@ async function setupServer(token: string, guildId: string) {
           }),
         });
         if (res.ok) {
-          logs.push(`✅ Created channel: #${channel.name}`);
+          logs.push(`✅ Created channel: #${channel.name}${isPrivate ? " 🔒" : ""}`);
         } else {
           logs.push(`❌ Failed to create channel: #${channel.name} (${res.status})`);
         }
