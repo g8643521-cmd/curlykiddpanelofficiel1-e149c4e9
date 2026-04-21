@@ -49,6 +49,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useDiscordSetupStore } from '@/stores/discordSetupStore';
+import DiscordSetupWizard, { type CategoryPermission } from '@/components/admin/DiscordSetupWizard';
 
 interface Guild {
   id: string;
@@ -81,7 +82,7 @@ export default function DiscordServerSetup() {
   const [guilds, setGuilds] = useState<Guild[]>([]);
   const [selectedGuild, setSelectedGuild] = useState<string>('');
   const [inviteUrl, setInviteUrl] = useState<string>('');
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showWizard, setShowWizard] = useState(false);
   const [structurePreview, setStructurePreview] = useState<StructurePreview | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   
@@ -247,13 +248,12 @@ export default function DiscordServerSetup() {
     await fetchStructurePreview();
   };
 
-  const handleSetupServer = async () => {
+  const handleSetupServer = async (categoryPermissions: Record<string, CategoryPermission>) => {
     if (!selectedGuild) {
       toast.error('Please select a server first');
       return;
     }
 
-    setShowConfirmDialog(false);
     startOperation('setup');
 
     try {
@@ -261,6 +261,7 @@ export default function DiscordServerSetup() {
         body: { 
           action: 'setup_server',
           guild_id: selectedGuild,
+          category_permissions: categoryPermissions,
         },
       });
 
@@ -665,7 +666,7 @@ export default function DiscordServerSetup() {
           <div className="space-y-2">
             <div className="grid grid-cols-2 gap-2">
               <Button 
-                onClick={() => setShowConfirmDialog(true)} 
+                onClick={() => setShowWizard(true)} 
                 disabled={!selectedGuild || isProcessing}
                 size="sm"
                 className="gap-2"
@@ -728,33 +729,15 @@ export default function DiscordServerSetup() {
         </div>
       )}
 
-      {/* Confirmation Dialog */}
-      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Setup Discord Server?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will create the following in <strong>{selectedGuildInfo?.name}</strong>:
-              <ul className="list-disc list-inside mt-2 space-y-1">
-                <li>5 custom roles (Owner, Admin, Moderator, etc.)</li>
-                <li>6 categories with ~25 channels</li>
-                <li>Staff-only areas with proper permissions</li>
-                <li>Welcome message in announcements</li>
-              </ul>
-              <p className="mt-2 text-amber-500">
-                Existing channels and roles will not be modified.
-              </p>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleSetupServer} className="bg-[#5865F2] hover:bg-[#4752C4]">
-              <Wand2 className="w-4 h-4 mr-2" />
-              Start Setup
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Setup Wizard */}
+      <DiscordSetupWizard
+        open={showWizard}
+        onOpenChange={setShowWizard}
+        guildId={selectedGuild}
+        guildName={selectedGuildInfo?.name}
+        categories={structurePreview?.categories ?? []}
+        onConfirm={handleSetupServer}
+      />
     </div>
   );
 }
