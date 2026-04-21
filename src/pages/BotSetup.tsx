@@ -2410,16 +2410,6 @@ const BotSetup = () => {
                           </div>
                         )}
                       </div>
-                        ) : (
-                          <div className="p-4 text-center">
-                            <Users className="w-5 h-5 text-emerald-500 mx-auto mb-1.5" />
-                            <p className="text-xs font-medium text-foreground">Synlig for alle</p>
-                            <p className="text-[10px] text-muted-foreground mt-0.5">
-                              Alle medlemmer kan se de oprettede kanaler
-                            </p>
-                          </div>
-                        )}
-                      </div>
                     )}
 
                     <details className="group">
