@@ -119,6 +119,68 @@ export type Database = {
         }
         Relationships: []
       }
+      bot_server_advanced_settings: {
+        Row: {
+          alert_mention_role_id: string | null
+          auto_assign_cheater_role: boolean
+          auto_ban_cheaters: boolean
+          auto_kick_cheaters: boolean
+          auto_scan_interval_minutes: number
+          cheater_role_id: string | null
+          created_at: string
+          id: string
+          info_channel_id: string | null
+          log_all_joins: boolean
+          min_bans_for_alert: number
+          notify_on_clean_joins: boolean
+          server_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          alert_mention_role_id?: string | null
+          auto_assign_cheater_role?: boolean
+          auto_ban_cheaters?: boolean
+          auto_kick_cheaters?: boolean
+          auto_scan_interval_minutes?: number
+          cheater_role_id?: string | null
+          created_at?: string
+          id?: string
+          info_channel_id?: string | null
+          log_all_joins?: boolean
+          min_bans_for_alert?: number
+          notify_on_clean_joins?: boolean
+          server_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          alert_mention_role_id?: string | null
+          auto_assign_cheater_role?: boolean
+          auto_ban_cheaters?: boolean
+          auto_kick_cheaters?: boolean
+          auto_scan_interval_minutes?: number
+          cheater_role_id?: string | null
+          created_at?: string
+          id?: string
+          info_channel_id?: string | null
+          log_all_joins?: boolean
+          min_bans_for_alert?: number
+          notify_on_clean_joins?: boolean
+          server_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bot_server_advanced_settings_server_id_fkey"
+            columns: ["server_id"]
+            isOneToOne: true
+            referencedRelation: "discord_bot_servers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bot_server_settings: {
         Row: {
           created_at: string

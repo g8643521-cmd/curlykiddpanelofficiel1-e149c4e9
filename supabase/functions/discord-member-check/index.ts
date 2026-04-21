@@ -123,6 +123,123 @@ async function sendWebhookWithRetry(
   return false;
 }
 
+// ── Auto-moderation helpers ─────────────────────────────────────────────
+// Fetch advanced settings for a server (cached per invocation through caller)
+async function fetchAdvancedSettings(supabase: any, serverId: string) {
+  const { data } = await supabase
+    .from("bot_server_advanced_settings")
+    .select("*")
+    .eq("server_id", serverId)
+    .maybeSingle();
+  return data || null;
+}
+
+// Assign a role to a user. Silently no-op on failure (e.g., role above bot's role).
+async function discordAssignRole(
+  guildId: string,
+  userId: string,
+  roleId: string,
+  botToken: string,
+): Promise<boolean> {
+  try {
+    const res = await fetchWithRetry(
+      `${DISCORD_API}/guilds/${guildId}/members/${userId}/roles/${roleId}`,
+      {
+        method: "PUT",
+        headers: { Authorization: `Bot ${botToken}`, "X-Audit-Log-Reason": "CurlyKidd: cheater detected" },
+      },
+    );
+    return res.ok || res.status === 204;
+  } catch (e) {
+    console.error(`assign-role failed (${userId} → ${roleId}):`, e);
+    return false;
+  }
+}
+
+async function discordKickMember(
+  guildId: string,
+  userId: string,
+  botToken: string,
+  reason = "CurlyKidd: cheater detected (auto-kick)",
+): Promise<boolean> {
+  try {
+    const res = await fetchWithRetry(
+      `${DISCORD_API}/guilds/${guildId}/members/${userId}`,
+      {
+        method: "DELETE",
+        headers: { Authorization: `Bot ${botToken}`, "X-Audit-Log-Reason": encodeURIComponent(reason).slice(0, 500) },
+      },
+    );
+    return res.ok || res.status === 204;
+  } catch (e) {
+    console.error(`kick failed (${userId}):`, e);
+    return false;
+  }
+}
+
+async function discordBanMember(
+  guildId: string,
+  userId: string,
+  botToken: string,
+  reason = "CurlyKidd: cheater detected (auto-ban)",
+): Promise<boolean> {
+  try {
+    const res = await fetchWithRetry(
+      `${DISCORD_API}/guilds/${guildId}/bans/${userId}`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bot ${botToken}`,
+          "Content-Type": "application/json",
+          "X-Audit-Log-Reason": encodeURIComponent(reason).slice(0, 500),
+        },
+        body: JSON.stringify({ delete_message_seconds: 0 }),
+      },
+    );
+    return res.ok || res.status === 204;
+  } catch (e) {
+    console.error(`ban failed (${userId}):`, e);
+    return false;
+  }
+}
+
+// Apply auto-mod actions for one detected cheater. Returns audit info.
+// Mutual exclusion is enforced by DB CHECK constraint, but we double-guard here.
+async function applyAutoModeration(opts: {
+  guildId: string;
+  serverId: string;
+  userId: string;
+  totalBans: number;
+  settings: any | null;
+  botToken: string;
+}): Promise<{ kicked: boolean; banned: boolean; roleAssigned: boolean }> {
+  const { guildId, userId, totalBans, settings, botToken } = opts;
+  if (!settings) return { kicked: false, banned: false, roleAssigned: false };
+
+  // Threshold: only act if total bans meet the configured minimum (default 1)
+  const minBans = typeof settings.min_bans_for_alert === "number" ? settings.min_bans_for_alert : 1;
+  if (totalBans < minBans) return { kicked: false, banned: false, roleAssigned: false };
+
+  // 1) Role assignment (always before kick/ban so role is logged on the audit trail)
+  let roleAssigned = false;
+  if (settings.auto_assign_cheater_role && settings.cheater_role_id) {
+    roleAssigned = await discordAssignRole(guildId, userId, settings.cheater_role_id, botToken);
+  }
+
+  // 2) Auto-mod (ban takes precedence over kick if both somehow set)
+  let banned = false;
+  let kicked = false;
+  if (settings.auto_ban_cheaters) {
+    banned = await discordBanMember(guildId, userId, botToken);
+  } else if (settings.auto_kick_cheaters) {
+    kicked = await discordKickMember(guildId, userId, botToken);
+  }
+  return { kicked, banned, roleAssigned };
+}
+
+// (auto-moderation block ends above)
+
+
 async function fetchAllMembers(
   guildId: string,
   botToken: string,
@@ -778,6 +895,39 @@ Deno.serve(async (req) => {
       );
     }
 
+    // ── list-channels action ──
+    // Returns text channels (type 0) for a guild, used by the wizard's info-channel selector
+    if (action === "list-channels") {
+      const targetGuildId = body?.guildId;
+      if (!targetGuildId || !DISCORD_BOT_TOKEN) {
+        return new Response(
+          JSON.stringify({ success: false, error: "guildId and bot token required" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      const chRes = await fetchWithRetry(
+        `${DISCORD_API}/guilds/${targetGuildId}/channels`,
+        { headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` } },
+      );
+      if (!chRes.ok) {
+        const errText = await chRes.text();
+        return new Response(
+          JSON.stringify({ success: false, error: `Failed to fetch channels: ${chRes.status} ${errText}` }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      const all = await chRes.json() as Array<{ id: string; name: string; type: number; parent_id: string | null; position: number }>;
+      // Only text channels (type 0) and announcement channels (type 5)
+      const textChannels = all
+        .filter((c) => c.type === 0 || c.type === 5)
+        .sort((a, b) => a.position - b.position)
+        .map((c) => ({ id: c.id, name: c.name, type: c.type, parent_id: c.parent_id }));
+      return new Response(
+        JSON.stringify({ success: true, channels: textChannels }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     // ── fetch-icons action ──
     if (action === "fetch-icons") {
       if (!DISCORD_BOT_TOKEN) {
@@ -1277,6 +1427,9 @@ Deno.serve(async (req) => {
 
       for (const server of servers) {
         try {
+          // Load advanced settings once per server
+          const advancedSettings = await fetchAdvancedSettings(supabase, server.id);
+
           const members = await fetchAllMembers(server.guild_id, DISCORD_BOT_TOKEN);
           const lastChecked = new Date(server.last_checked_at || "2000-01-01T00:00:00.000Z");
           const newMembers = members.filter((m) => new Date(m.joined_at) > lastChecked);
@@ -1317,6 +1470,7 @@ Deno.serve(async (req) => {
             totalChecked++;
             const sxData = sxResults.get(discordId);
             const isCheater = hasScreenShareXMatch(sxData);
+            const totalBans = sxData?.bans?.length || 0;
 
             joinRecords.push({
               discord_user_id: discordId,
@@ -1327,9 +1481,17 @@ Deno.serve(async (req) => {
               is_cheater: isCheater,
             });
 
-            if (isCheater) {
-              const embed = buildEmbed(sxData, member, server);
-              const sent = await sendWebhookWithRetry(server.webhook_url, embed);
+            // Threshold gating: skip alert if below min_bans threshold
+            const minBans = advancedSettings?.min_bans_for_alert ?? 1;
+            const meetsAlertThreshold = totalBans >= minBans;
+
+            if (isCheater && meetsAlertThreshold) {
+              // Build alert embed (with optional role mention)
+              const baseEmbed = buildEmbed(sxData, member, server);
+              const payload = advancedSettings?.alert_mention_role_id
+                ? { ...baseEmbed, content: `<@&${advancedSettings.alert_mention_role_id}>`, allowed_mentions: { roles: [advancedSettings.alert_mention_role_id] } }
+                : baseEmbed;
+              const sent = await sendWebhookWithRetry(server.webhook_url, payload);
               if (sent) {
                 totalAlerts++;
                 supabase.from("discord_alerted_members").upsert({
@@ -1337,7 +1499,27 @@ Deno.serve(async (req) => {
                   joined_at: member.joined_at, alerted_at: new Date().toISOString(),
                 }, { onConflict: "guild_id,discord_user_id", ignoreDuplicates: false });
                 saveDetectedCheater(supabase, sxData, member, server);
+
+                // ── Auto-moderation ──
+                applyAutoModeration({
+                  guildId: server.guild_id,
+                  serverId: server.id,
+                  userId: discordId,
+                  totalBans,
+                  settings: advancedSettings,
+                  botToken: DISCORD_BOT_TOKEN,
+                }).catch((e) => console.error("auto-mod error:", e));
               }
+            } else if (!isCheater && advancedSettings?.notify_on_clean_joins && server.webhook_url) {
+              // Optional: notify on clean joins
+              sendWebhookWithRetry(server.webhook_url, {
+                embeds: [{
+                  title: "✅ Clean join",
+                  description: `<@${discordId}> joined and passed the cheater check.`,
+                  color: 0x22c55e,
+                  timestamp: new Date().toISOString(),
+                }],
+              }).catch(() => {});
             }
           }
 
@@ -1546,6 +1728,9 @@ Deno.serve(async (req) => {
         return await buildStoppedResponse(server, totalChecked, totalSkipped, totalAlerts, guildTotalMembers, supabase, scanStartedAt, fullScan, bgScanHistoryId);
       }
 
+      // Load advanced settings once for the whole batch (cheap single row lookup)
+      const advancedSettings = await fetchAdvancedSettings(supabase, server.id);
+
       const alertInserts = cheaters.map(({ member }) => {
         const discordId = member.user!.id!;
         alertedSet.add(fullScan ? discordId : `${discordId}:${member.joined_at}`);
@@ -1567,6 +1752,28 @@ Deno.serve(async (req) => {
       Promise.allSettled(
         cheaters.map(({ member, sxData }) => saveDetectedCheater(supabase, sxData, member, server)),
       ).catch(() => {});
+
+      // ── Auto-moderation pass ──
+      // Run sequentially to respect Discord rate limits, but fire-and-forget so the
+      // scan response isn't blocked.
+      if (advancedSettings && (advancedSettings.auto_kick_cheaters || advancedSettings.auto_ban_cheaters || advancedSettings.auto_assign_cheater_role)) {
+        (async () => {
+          for (const { member, sxData } of cheaters) {
+            const userId = member.user?.id;
+            if (!userId) continue;
+            const totalBans = sxData?.bans?.length || 0;
+            await applyAutoModeration({
+              guildId: server.guild_id,
+              serverId: server.id,
+              userId,
+              totalBans,
+              settings: advancedSettings,
+              botToken: DISCORD_BOT_TOKEN,
+            });
+            await sleep(150); // gentle on Discord rate limits
+          }
+        })().catch((e) => console.error("auto-mod batch error:", e));
+      }
     }
 
     if (bgScanHistoryId) {
