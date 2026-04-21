@@ -123,6 +123,127 @@ async function sendWebhookWithRetry(
   return false;
 }
 
+// ── Auto-moderation helpers ─────────────────────────────────────────────
+// Fetch advanced settings for a server (cached per invocation through caller)
+async function fetchAdvancedSettings(supabase: any, serverId: string) {
+  const { data } = await supabase
+    .from("bot_server_advanced_settings")
+    .select("*")
+    .eq("server_id", serverId)
+    .maybeSingle();
+  return data || null;
+}
+
+// Assign a role to a user. Silently no-op on failure (e.g., role above bot's role).
+async function discordAssignRole(
+  guildId: string,
+  userId: string,
+  roleId: string,
+  botToken: string,
+): Promise<boolean> {
+  try {
+    const res = await fetchWithRetry(
+      `${DISCORD_API}/guilds/${guildId}/members/${userId}/roles/${roleId}`,
+      {
+        method: "PUT",
+        headers: { Authorization: `Bot ${botToken}`, "X-Audit-Log-Reason": "CurlyKidd: cheater detected" },
+      },
+    );
+    return res.ok || res.status === 204;
+  } catch (e) {
+    console.error(`assign-role failed (${userId} → ${roleId}):`, e);
+    return false;
+  }
+}
+
+async function discordKickMember(
+  guildId: string,
+  userId: string,
+  botToken: string,
+  reason = "CurlyKidd: cheater detected (auto-kick)",
+): Promise<boolean> {
+  try {
+    const res = await fetchWithRetry(
+      `${DISCORD_API}/guilds/${guildId}/members/${userId}`,
+      {
+        method: "DELETE",
+        headers: { Authorization: `Bot ${botToken}`, "X-Audit-Log-Reason": encodeURIComponent(reason).slice(0, 500) },
+      },
+    );
+    return res.ok || res.status === 204;
+  } catch (e) {
+    console.error(`kick failed (${userId}):`, e);
+    return false;
+  }
+}
+
+async function discordBanMember(
+  guildId: string,
+  userId: string,
+  botToken: string,
+  reason = "CurlyKidd: cheater detected (auto-ban)",
+): Promise<boolean> {
+  try {
+    const res = await fetchWithRetry(
+      `${DISCORD_API}/guilds/${guildId}/bans/${userId}`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bot ${botToken}`,
+          "Content-Type": "application/json",
+          "X-Audit-Log-Reason": encodeURIComponent(reason).slice(0, 500),
+        },
+        body: JSON.stringify({ delete_message_seconds: 0 }),
+      },
+    );
+    return res.ok || res.status === 204;
+  } catch (e) {
+    console.error(`ban failed (${userId}):`, e);
+    return false;
+  }
+}
+
+// Apply auto-mod actions for one detected cheater. Returns audit info.
+// Mutual exclusion is enforced by DB CHECK constraint, but we double-guard here.
+async function applyAutoModeration(opts: {
+  guildId: string;
+  serverId: string;
+  userId: string;
+  totalBans: number;
+  settings: any | null;
+  botToken: string;
+}): Promise<{ kicked: boolean; banned: boolean; roleAssigned: boolean }> {
+  const { guildId, userId, totalBans, settings, botToken } = opts;
+  if (!settings) return { kicked: false, banned: false, roleAssigned: false };
+
+  // Threshold: only act if total bans meet the configured minimum (default 1)
+  const minBans = typeof settings.min_bans_for_alert === "number" ? settings.min_bans_for_alert : 1;
+  if (totalBans < minBans) return { kicked: false, banned: false, roleAssigned: false };
+
+  // 1) Role assignment (always before kick/ban so role is logged on the audit trail)
+  let roleAssigned = false;
+  if (settings.auto_assign_cheater_role && settings.cheater_role_id) {
+    roleAssigned = await discordAssignRole(guildId, userId, settings.cheater_role_id, botToken);
+  }
+
+  // 2) Auto-mod (ban takes precedence over kick if both somehow set)
+  let banned = false;
+  let kicked = false;
+  if (settings.auto_ban_cheaters) {
+    banned = await discordBanMember(guildId, userId, botToken);
+  } else if (settings.auto_kick_cheaters) {
+    kicked = await discordKickMember(guildId, userId, botToken);
+  }
+  return { kicked, banned, roleAssigned };
+}
+
+function _autoModSentinel() {
+  return null;
+    return false;
+  }
+  return false;
+}
+
 async function fetchAllMembers(
   guildId: string,
   botToken: string,
