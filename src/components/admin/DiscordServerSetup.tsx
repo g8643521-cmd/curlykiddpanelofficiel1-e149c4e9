@@ -729,33 +729,15 @@ export default function DiscordServerSetup() {
         </div>
       )}
 
-      {/* Confirmation Dialog */}
-      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Setup Discord Server?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will create the following in <strong>{selectedGuildInfo?.name}</strong>:
-              <ul className="list-disc list-inside mt-2 space-y-1">
-                <li>5 custom roles (Owner, Admin, Moderator, etc.)</li>
-                <li>6 categories with ~25 channels</li>
-                <li>Staff-only areas with proper permissions</li>
-                <li>Welcome message in announcements</li>
-              </ul>
-              <p className="mt-2 text-amber-500">
-                Existing channels and roles will not be modified.
-              </p>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleSetupServer} className="bg-[#5865F2] hover:bg-[#4752C4]">
-              <Wand2 className="w-4 h-4 mr-2" />
-              Start Setup
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Setup Wizard */}
+      <DiscordSetupWizard
+        open={showWizard}
+        onOpenChange={setShowWizard}
+        guildId={selectedGuild}
+        guildName={selectedGuildInfo?.name}
+        categories={structurePreview?.categories ?? []}
+        onConfirm={handleSetupServer}
+      />
     </div>
   );
 }
