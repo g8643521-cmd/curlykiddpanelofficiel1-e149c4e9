@@ -49,6 +49,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useDiscordSetupStore } from '@/stores/discordSetupStore';
+import DiscordSetupWizard, { type CategoryPermission } from '@/components/admin/DiscordSetupWizard';
 
 interface Guild {
   id: string;
