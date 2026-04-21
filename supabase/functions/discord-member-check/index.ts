@@ -1427,6 +1427,9 @@ Deno.serve(async (req) => {
 
       for (const server of servers) {
         try {
+          // Load advanced settings once per server
+          const advancedSettings = await fetchAdvancedSettings(supabase, server.id);
+
           const members = await fetchAllMembers(server.guild_id, DISCORD_BOT_TOKEN);
           const lastChecked = new Date(server.last_checked_at || "2000-01-01T00:00:00.000Z");
           const newMembers = members.filter((m) => new Date(m.joined_at) > lastChecked);
@@ -1467,6 +1470,7 @@ Deno.serve(async (req) => {
             totalChecked++;
             const sxData = sxResults.get(discordId);
             const isCheater = hasScreenShareXMatch(sxData);
+            const totalBans = sxData?.bans?.length || 0;
 
             joinRecords.push({
               discord_user_id: discordId,
@@ -1477,9 +1481,17 @@ Deno.serve(async (req) => {
               is_cheater: isCheater,
             });
 
-            if (isCheater) {
-              const embed = buildEmbed(sxData, member, server);
-              const sent = await sendWebhookWithRetry(server.webhook_url, embed);
+            // Threshold gating: skip alert if below min_bans threshold
+            const minBans = advancedSettings?.min_bans_for_alert ?? 1;
+            const meetsAlertThreshold = totalBans >= minBans;
+
+            if (isCheater && meetsAlertThreshold) {
+              // Build alert embed (with optional role mention)
+              const baseEmbed = buildEmbed(sxData, member, server);
+              const payload = advancedSettings?.alert_mention_role_id
+                ? { ...baseEmbed, content: `<@&${advancedSettings.alert_mention_role_id}>`, allowed_mentions: { roles: [advancedSettings.alert_mention_role_id] } }
+                : baseEmbed;
+              const sent = await sendWebhookWithRetry(server.webhook_url, payload);
               if (sent) {
                 totalAlerts++;
                 supabase.from("discord_alerted_members").upsert({
@@ -1487,7 +1499,27 @@ Deno.serve(async (req) => {
                   joined_at: member.joined_at, alerted_at: new Date().toISOString(),
                 }, { onConflict: "guild_id,discord_user_id", ignoreDuplicates: false });
                 saveDetectedCheater(supabase, sxData, member, server);
+
+                // ── Auto-moderation ──
+                applyAutoModeration({
+                  guildId: server.guild_id,
+                  serverId: server.id,
+                  userId: discordId,
+                  totalBans,
+                  settings: advancedSettings,
+                  botToken: DISCORD_BOT_TOKEN,
+                }).catch((e) => console.error("auto-mod error:", e));
               }
+            } else if (!isCheater && advancedSettings?.notify_on_clean_joins && server.webhook_url) {
+              // Optional: notify on clean joins
+              sendWebhookWithRetry(server.webhook_url, {
+                embeds: [{
+                  title: "✅ Clean join",
+                  description: `<@${discordId}> joined and passed the cheater check.`,
+                  color: 0x22c55e,
+                  timestamp: new Date().toISOString(),
+                }],
+              }).catch(() => {});
             }
           }
 
