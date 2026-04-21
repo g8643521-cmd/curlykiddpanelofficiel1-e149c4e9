@@ -184,7 +184,7 @@ export default function AddServerWizard(props: AddServerWizardProps) {
                         isComplete && 'text-foreground/80',
                         !isActive && !isComplete && 'text-muted-foreground'
                       )}>
-                        {t(key)}
+                        {key.includes('.') ? t(key) : key}
                       </span>
                     </div>
                     {idx < STEP_KEYS.length - 1 && !(props.isAdmin && idx === 0) && (
