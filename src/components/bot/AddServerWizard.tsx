@@ -616,8 +616,52 @@ export default function AddServerWizard(props: AddServerWizardProps) {
                 />
               )}
 
-              {/* ═══ STEP 5 — Confirm ═══ */}
+              {/* ═══ STEP 5 — Access Key ═══ */}
               {step === 4 && (
+                <div className="space-y-5">
+                  <div>
+                    <h3 className="text-lg font-semibold tracking-tight text-foreground">Access key</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Enter the personal one-time key issued to you by an administrator. Each key can only be used once.
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-border/40 bg-card/40 p-4 space-y-3">
+                    <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Key code
+                    </label>
+                    <div className="relative">
+                      <Key className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/50" />
+                      <Input
+                        value={props.accessKey}
+                        onChange={(e) => props.setAccessKey(e.target.value.toUpperCase())}
+                        placeholder="CKP-XXXX-XXXX-XXXX"
+                        className="h-11 pl-10 text-sm font-mono tracking-wider bg-secondary/30 border-border/40"
+                      />
+                    </div>
+                    {props.isAdmin && (
+                      <p className="text-[11px] text-muted-foreground/70 inline-flex items-center gap-1.5">
+                        <ShieldCheck className="w-3 h-3 text-primary" />
+                        You're an admin — the key is optional but recommended.
+                      </p>
+                    )}
+                    {!props.isAdmin && !canPassStep4 && accessKeyTrimmed.length > 0 && (
+                      <p className="text-[11px] text-destructive/80 inline-flex items-center gap-1.5">
+                        <AlertTriangle className="w-3 h-3" />
+                        Invalid key format — should look like CKP-XXXX-XXXX-XXXX.
+                      </p>
+                    )}
+                    {!props.isAdmin && (
+                      <p className="text-[11px] text-muted-foreground/70">
+                        Don't have a key? Contact an administrator to issue one for your account.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ═══ STEP 6 — Confirm ═══ */}
+              {step === 5 && (
                 <div className="space-y-5">
                   <div>
                     <h3 className="text-lg font-semibold tracking-tight text-foreground">{t('wizard.s4.title')}</h3>
@@ -735,7 +779,7 @@ export default function AddServerWizard(props: AddServerWizardProps) {
             )}
           </Button>
 
-          {step === 4 ? (
+          {step === 5 ? (
             <Button
               onClick={props.onSubmit}
               disabled={props.isSubmitting || !canFinish}
