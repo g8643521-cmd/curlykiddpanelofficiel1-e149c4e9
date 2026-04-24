@@ -62,6 +62,7 @@ import { useAdminStatus } from '@/hooks/useAdminStatus';
 import { useCanCreateServer } from '@/hooks/useCanCreateServer';
 import { useAuthReady } from '@/hooks/useAuthReady';
 import { defaultAdvancedSettings, isAdvancedSettingsValid, type AdvancedSettings, type WizardChannel } from '@/components/bot/AdvancedSettingsStep';
+import { logBotAction } from '@/lib/botAuditLog';
 
 // Lazy-load heavy components that aren't needed on initial render
 const ParticleBackground = lazy(() => import('@/components/ParticleBackground'));
