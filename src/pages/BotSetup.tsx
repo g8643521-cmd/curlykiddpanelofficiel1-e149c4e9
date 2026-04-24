@@ -666,6 +666,14 @@ const BotSetup = () => {
 
       if (error) {
         console.error('Insert server error:', error);
+        logBotAction({
+          action: 'server.create_failed',
+          status: 'failure',
+          guild_id: parsed.data.guild_id,
+          guild_name: parsed.data.guild_name,
+          error: error.message,
+          details: { code: (error as any).code },
+        });
         if (error.code === '23505') {
           toast.error('This server is already registered');
         } else {
@@ -690,10 +698,61 @@ const BotSetup = () => {
         if (advancedError) {
           await supabase.from('discord_bot_servers').delete().eq('id', createdServer.id);
           console.error('Advanced settings insert error:', advancedError);
+          logBotAction({
+            action: 'server.create_failed',
+            status: 'failure',
+            server_id: createdServer.id,
+            guild_id: parsed.data.guild_id,
+            guild_name: parsed.data.guild_name,
+            error: advancedError.message,
+            details: { stage: 'advanced_settings' },
+          });
           toast.error(`Failed to save advanced settings: ${advancedError.message || 'Unknown error'}`);
           setIsSubmitting(false);
           return;
         }
+
+        // Burn the access key (mark as used) and log consumption
+        if (validatedKeyId) {
+          await supabase
+            .from('server_creation_keys')
+            .update({
+              used_at: new Date().toISOString(),
+              used_by: session.session.user.id,
+              used_for_server_id: createdServer.id,
+            })
+            .eq('id', validatedKeyId);
+          logBotAction({
+            action: 'key.consumed',
+            status: 'success',
+            server_id: createdServer.id,
+            guild_id: parsed.data.guild_id,
+            guild_name: parsed.data.guild_name,
+            details: { key_id: validatedKeyId },
+          });
+        }
+
+        // Auto-add owner as admin in server_members (idempotent)
+        await supabase.from('server_members').insert({
+          server_id: createdServer.id,
+          user_id: session.session.user.id,
+          role: 'admin',
+          invited_by: session.session.user.id,
+        });
+
+        logBotAction({
+          action: 'server.create',
+          status: 'success',
+          server_id: createdServer.id,
+          guild_id: parsed.data.guild_id,
+          guild_name: parsed.data.guild_name,
+          details: {
+            mode: addMode,
+            channels_private: channelsPrivate,
+            allowed_roles: selectedRoleIds.length,
+            used_key: !!validatedKeyId,
+          },
+        });
 
         toast.success('Server added! CurlyKidd Bot will now monitor it.');
         setAddDialogOpen(false);
@@ -708,6 +767,7 @@ const BotSetup = () => {
       }
     } catch (e: any) {
       console.error('Add server exception:', e);
+      logBotAction({ action: 'server.create_failed', status: 'failure', error: e?.message || 'unknown' });
       toast.error(`Error: ${e?.message || 'Unknown error'}`);
     }
     setIsSubmitting(false);
@@ -723,11 +783,20 @@ const BotSetup = () => {
       const updated = { ...server, is_active: !server.is_active };
       setServers(prev => prev.map(s => s.id === server.id ? updated : s));
       setDetailServer(prev => prev && prev.id === server.id ? updated : prev);
+      logBotAction({
+        action: 'server.toggle_active',
+        status: 'success',
+        server_id: server.id,
+        guild_id: server.guild_id,
+        guild_name: server.guild_name,
+        details: { is_active: !server.is_active },
+      });
       toast.success(server.is_active ? 'Monitoring paused' : 'Monitoring resumed');
     }
   };
 
   const handleDelete = async (serverId: string) => {
+    const target = servers.find(s => s.id === serverId);
     const { error } = await supabase
       .from('discord_bot_servers')
       .delete()
@@ -735,7 +804,22 @@ const BotSetup = () => {
 
     if (!error) {
       setServers(prev => prev.filter(s => s.id !== serverId));
+      logBotAction({
+        action: 'server.delete',
+        status: 'success',
+        server_id: serverId,
+        guild_id: target?.guild_id ?? null,
+        guild_name: target?.guild_name ?? null,
+      });
       toast.success('Server removed');
+    } else {
+      logBotAction({
+        action: 'server.delete',
+        status: 'failure',
+        server_id: serverId,
+        guild_id: target?.guild_id ?? null,
+        error: error.message,
+      });
     }
   };
 
