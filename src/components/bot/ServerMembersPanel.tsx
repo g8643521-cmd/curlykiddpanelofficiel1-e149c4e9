@@ -101,9 +101,24 @@ const ServerMembersPanel = ({ serverId, isOwner }: ServerMembersPanelProps) => {
       if (error) {
         if (error.code === '23505') toast.error('Already a member');
         else toast.error(error.message || 'Could not invite');
+        logBotAction({
+          action: 'member.invite',
+          status: 'failure',
+          server_id: serverId,
+          target_user_id: profile.user_id,
+          error: error.message,
+          details: { email: trimmed, role },
+        });
         return;
       }
 
+      logBotAction({
+        action: 'member.invite',
+        status: 'success',
+        server_id: serverId,
+        target_user_id: profile.user_id,
+        details: { email: trimmed, role },
+      });
       toast.success(`Invited as ${role}`);
       setEmail('');
       setRole('viewer');
@@ -114,25 +129,56 @@ const ServerMembersPanel = ({ serverId, isOwner }: ServerMembersPanelProps) => {
   };
 
   const handleRoleChange = async (id: string, nextRole: MemberRole) => {
+    const target = members.find((m) => m.id === id);
     const { error } = await supabase
       .from('server_members')
       .update({ role: nextRole })
       .eq('id', id);
     if (error) {
       toast.error('Could not update role');
+      logBotAction({
+        action: 'member.role_change',
+        status: 'failure',
+        server_id: serverId,
+        target_user_id: target?.user_id ?? null,
+        error: error.message,
+        details: { from: target?.role, to: nextRole },
+      });
       return;
     }
     setMembers((prev) => prev.map((m) => (m.id === id ? { ...m, role: nextRole } : m)));
+    logBotAction({
+      action: 'member.role_change',
+      status: 'success',
+      server_id: serverId,
+      target_user_id: target?.user_id ?? null,
+      details: { from: target?.role, to: nextRole },
+    });
     toast.success('Role updated');
   };
 
   const handleRemove = async (id: string) => {
+    const target = members.find((m) => m.id === id);
     const { error } = await supabase.from('server_members').delete().eq('id', id);
     if (error) {
       toast.error('Could not remove');
+      logBotAction({
+        action: 'member.remove',
+        status: 'failure',
+        server_id: serverId,
+        target_user_id: target?.user_id ?? null,
+        error: error.message,
+      });
       return;
     }
     setMembers((prev) => prev.filter((m) => m.id !== id));
+    logBotAction({
+      action: 'member.remove',
+      status: 'success',
+      server_id: serverId,
+      target_user_id: target?.user_id ?? null,
+      details: { role: target?.role },
+    });
     toast.success('Member removed');
   };
 
