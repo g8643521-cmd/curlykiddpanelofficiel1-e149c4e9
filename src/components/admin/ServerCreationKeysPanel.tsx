@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+import { logBotAction } from '@/lib/botAuditLog';
 import { formatDistanceToNow } from 'date-fns';
 
 type CreationKey = {
@@ -85,10 +86,17 @@ const ServerCreationKeysPanel = () => {
 
       if (error) {
         toast.error(`Could not generate key: ${error.message}`);
+        logBotAction({ action: 'key.generate', status: 'failure', error: error.message });
         return;
       }
 
       toast.success('Key generated', { description: code });
+      logBotAction({
+        action: 'key.generate',
+        status: 'success',
+        target_user_id: issuedTo,
+        details: { key_id: (data as CreationKey).id, issued_to_email: trimmedEmail || null, note: note.trim() || null },
+      });
       setEmail('');
       setNote('');
       setKeys((prev) => [data as CreationKey, ...prev]);
@@ -109,12 +117,20 @@ const ServerCreationKeysPanel = () => {
   };
 
   const handleDelete = async (id: string) => {
+    const target = keys.find((k) => k.id === id);
     const { error } = await supabase.from('server_creation_keys').delete().eq('id', id);
     if (error) {
       toast.error('Could not delete key');
+      logBotAction({ action: 'key.revoke', status: 'failure', error: error.message, details: { key_id: id } });
       return;
     }
     setKeys((prev) => prev.filter((k) => k.id !== id));
+    logBotAction({
+      action: 'key.revoke',
+      status: 'success',
+      target_user_id: target?.issued_to ?? null,
+      details: { key_id: id, issued_to_email: target?.issued_to_email ?? null, was_used: !!target?.used_at },
+    });
     toast.success('Key revoked');
   };
 

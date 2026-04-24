@@ -21,6 +21,7 @@ import StatsOverridePanel from '@/components/admin/StatsOverridePanel';
 import AuditLogPanel from '@/components/admin/AuditLogPanel';
 import RoleManagementPanel from '@/components/admin/RoleManagementPanel';
 import ServerCreationKeysPanel from '@/components/admin/ServerCreationKeysPanel';
+import BotActivityLogPanel from '@/components/admin/BotActivityLogPanel';
 import DiscordWebhookSettings from '@/components/DiscordWebhookSettings';
 import MaintenanceBanner from '@/components/MaintenanceBanner';
 import AppHeader from '@/components/AppHeader';
@@ -81,6 +82,7 @@ const NAV_GROUPS = [
       { id: 'bot', label: 'Bot Config', icon: Bot, description: 'Discord bot setup' },
       { id: 'api-keys', label: 'API Keys', icon: Key, description: 'Manage access tokens' },
       { id: 'server-keys', label: 'Server Keys', icon: ShieldCheck, description: 'Personal server creation keys' },
+      { id: 'bot-activity', label: 'Bot Activity', icon: Activity, description: 'All /bot actions audit log' },
     ],
   },
 ];
@@ -442,6 +444,13 @@ const AdminPanel = () => {
         return (
           <motion.div key="server-keys" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
             <ServerCreationKeysPanel />
+          </motion.div>
+        );
+
+      case 'bot-activity':
+        return (
+          <motion.div key="bot-activity" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+            <BotActivityLogPanel />
           </motion.div>
         );
 
