@@ -534,27 +534,32 @@ const BotSetup = () => {
           .maybeSingle();
 
         if (keyErr || !keyRow) {
+          logBotAction({ action: 'key.validate_failed', status: 'failure', details: { key_prefix: trimmedKey.slice(0, 8), reason: 'not_found' } });
           toast.error('Ugyldig access key');
           setIsSubmitting(false);
           return;
         }
         if (keyRow.used_at) {
+          logBotAction({ action: 'key.validate_failed', status: 'failure', details: { key_id: keyRow.id, reason: 'already_used' } });
           toast.error('Denne key er allerede brugt');
           setIsSubmitting(false);
           return;
         }
         if (keyRow.expires_at && new Date(keyRow.expires_at) < new Date()) {
+          logBotAction({ action: 'key.validate_failed', status: 'failure', details: { key_id: keyRow.id, reason: 'expired' } });
           toast.error('Denne key er udløbet');
           setIsSubmitting(false);
           return;
         }
         if (keyRow.issued_to && keyRow.issued_to !== session.session.user.id) {
+          logBotAction({ action: 'key.validate_failed', status: 'failure', details: { key_id: keyRow.id, reason: 'wrong_user' } });
           toast.error('Denne key er udstedt til en anden bruger');
           setIsSubmitting(false);
           return;
         }
         validatedKeyId = keyRow.id;
       } else if (!isAdmin) {
+        logBotAction({ action: 'key.validate_failed', status: 'failure', details: { reason: 'missing_key' } });
         toast.error('Access key er påkrævet');
         setIsSubmitting(false);
         return;
